@@ -1,14 +1,12 @@
 # Pyce_Tools
 
-A PYthon library for loading, cleaning, and analyzing iCE nucleating particle (INP) data.
+A PYthon library for loading, cleaning, and analyzing iCE nucleating particle (INP) data. :ice_cube:
 
 Pyce Tools allows users to easily:
 
-* Create experiment report files (XLSX format) by loading and cleaning raw experiment (or blank) csv data files from the LINDA instrument.
-* Load and wrangle inverted DMPS (from LAMP's Scanotron instrument) and CPC (TSI Inc.) time series data files into single time series files.
+* Create experiment report files (XLSX format) by loading and processing raw experiment (or blank) csv data files from the LED-based Ice Nucleation Detection Apparatus (LINDA).
+* Load and wrangle inverted DMPS (from LAMP's Scanotron instrument) and CPC (TSI Inc.) time series data files into single time series files which are readily manipulated for further exploratory data analysis (EDA).
 * Load pre-processed DMPS data files for EDA.
-
-
 
 ## Installation
 
