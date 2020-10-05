@@ -22,13 +22,13 @@ For now, Pyce Tools is installed simply by cloning this repository into your wor
 ## Usage
 
 In your Jupyter Notebook (or equivalent workspace), alter your system path to include pyce_tools root folder:
-'''
+```
 import sys
 sys.path.append('PATH\\TO\\PYCE_TOOLS')
-'''
+```
 
  Then, import Pyce Tools by typing the following:
-'''import pyce_tools.pyce_tools as pt'''
+```import pyce_tools.pyce_tools as pt```
 
 
 ## TO DO
