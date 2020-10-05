@@ -1,4 +1,4 @@
-# Pyce_Tools
+# Pyce Tools
 
 A PYthon library for loading, cleaning, and analyzing iCE nucleating particle (INP) data. :ice_cube:
 
@@ -27,8 +27,10 @@ import sys
 sys.path.append('PATH\\TO\\PYCE_TOOLS')
 ```
 
- Then, import Pyce Tools by typing the following:
-```import pyce_tools.pyce_tools as pt```
+Then, import Pyce Tools by typing the following:
+```
+import pyce_tools.pyce_tools as pt
+```
 
 
 ## TO DO
