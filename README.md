@@ -7,6 +7,7 @@ Pyce Tools allows users to easily:
 * Create experiment report files (xlsx format) by loading and processing raw experiment (or blank) csv data files from the LED-based Ice Nucleation Detection Apparatus (LINDA).
 * Load and wrangle inverted differential mobility particle sizer (DMPS) data from LAMP's Scanotron instrument and condensation particle counter (CPC, TSI Inc.) time series data files into single time series files which are readily manipulated for further exploratory data analysis (EDA).
 * Load pre-processed DMPS data files for EDA.
+* Plot time series of surface area and number size distributions
 
 ## Installation
 
@@ -17,6 +18,7 @@ For now, Pyce Tools is installed simply by cloning this repository into your wor
 * Pandas
 * openpyxl
 * datetime
+* Plotly
 * *Recommended:* Jupyter Notebooks
 
 ## Usage
@@ -36,12 +38,14 @@ import pyce_tools.pyce_tools as pt
 ## TO DO
 
 * Load LINDA experiment report files into a single time series dataset for exploratory analysis.
-* Include function for plotting DMPS timeseries (see scanotron_magic_BHS) and downsampling to average of user-selected time periods.
+* :heavy_check_mark: Include functions for plotting surface area and number size distribution timeseries (error bars included)
+* Function for downsampling to average of user-selected time periods.
 * Include function for plotting common INP plots
-* Include function for creating error bars for scanotron and ice nucleating particles (the INP uncertainties are created in spreadsheet, but more needs to be done before they can be plotted with plotly..see PEACETIME Revised Plots notebook)
+* Improve time zone handling
+* Include function for creating error bars for ice nucleating particles (the INP uncertainties are created in spreadsheet, but more needs to be done before they can be plotted with plotly..see PEACETIME Revised Plots notebook)
 * Include function for calculating INP concentrations normalized by particle surface area (see nz2020 in_bio_analysis notebook)
 * Include function for calculating correlation terms (see PEACETIME notebooks)
-* Include function for calculating particle surface areas (see nz2020 in_bio_analysis notebook)
+* :heavy_check_mark: Include function for calculating particle surface areas 
 
 ## Contributing
 

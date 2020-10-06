@@ -21,7 +21,7 @@ Include function for plotting INP various plots
 Include function for creating error bars for ice nucleating particles (the INP uncertainties are created in spreadsheet, but more needs to be done before they can be plotted..see PEACETIME notebook)
 Include function for calculating INP concentrations normalized by particle surface area (see in_bio_analysis notebook)
 Include function for calculating correlation terms (see PEACETIME notebooks)
-
+Include function for plotting INP compared with previous studies
 '''
 
 
