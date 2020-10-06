@@ -1,3 +1,10 @@
+import pandas as pd
+import math
+import plotly.express as px
+import plotly.graph_objs as go
+from plotly.subplots import make_subplots
+import os
+
 def calculate_raw_blank(type_, process, sample_name, collection_date, analysis_date, issues, num_tubes, vol_tube = 0.2, rinse_vol = 20, size = None):
     '''
     Description
@@ -511,3 +518,184 @@ def load_scano_data(date_string, instrument):
     # Create a dN dataframe
     dN=df.set_index('time').loc[:,'10':]*dLogDp
     return dN, dNdLogDp_full
+
+def surface_area(smps_daily_mean_df, smps_daily_std_df, nbins):
+    '''
+    '''
+     # Calculate log of particle diameter bin size (dLogDp)
+    start_bin = smps_daily_mean_df.index[0]   # Smallest Dp
+    end_bin = smps_daily_mean_df.index[-1]   # Largest Dp
+    dLogDp=(math.log10(end_bin)-math.log10(start_bin))/(nbins-1)
+
+    # Convert particle diameters to meters from nm
+    smps_daily_mean_df.reset_index(inplace=True)
+    smps_daily_mean_df['Dp (m)']=smps_daily_mean_df['Dp']*1e-9
+
+    smps_daily_std_df.reset_index(inplace=True)
+    smps_daily_std_df['Dp (m)'] = smps_daily_std_df['Dp']*1e-9
+
+    # Create particle diameter squared (Dp2) in units of meters^2
+    smps_daily_mean_df['Dp2 (m2)'] = smps_daily_mean_df['Dp (m)']**2
+    smps_daily_std_df['Dp2 (m2)'] = smps_daily_std_df['Dp (m)']**2
+
+    # Calculate factor A for particle surface area calculation in m^2, which is just diameter squared times Pi
+    smps_daily_mean_df['factorA'] = smps_daily_mean_df['Dp2 (m2)']*3.14159
+    smps_daily_mean_df.set_index('Dp',inplace=True)
+
+    smps_daily_std_df['factorA'] = smps_daily_std_df['Dp2 (m2)']*3.14159
+    smps_daily_std_df.set_index('Dp', inplace=True)
+
+    # Calculate particles/cm^3 of air (un-normalized) by multiplying through by the normalizing constant (log of particle diameter bin size)
+    dN=smps_daily_mean_df.iloc[:,:-3]*dLogDp
+    dN_std = smps_daily_std_df.iloc[:,:-3]*dLogDp
+
+    # Calculate surface area per unit volume of air (m^2/cm^3)
+    dA=dN.mul(smps_daily_mean_df['factorA'],0)
+    dA_std=dN_std.mul(smps_daily_std_df['factorA'],0)
+
+    # Convert surface area units from m^2/cm^3 to um^2/cm^3
+    dA=dA*1e12
+    dA_std=dA_std*1e12
+
+    # Normalize by log of particle diameter bin size (dLogDp) for surface area          distribution (nm^2/cm^3)
+    dAdLogDp = (dA*1e6)/dLogDp
+    dAdLogDp_std = (dA_std*1e6)/dLogDp
+
+    # Sum all size bins to calculate total surface area (um^2/cm^3)
+    dA_total=dA.sum(axis=0).to_frame()
+    dA_total.rename(columns={0:'SA'},inplace=True)
+    dN_total=dN.sum(axis=0).to_frame()
+    dN_total.rename(columns={0:'DN'},inplace=True)
+    return dAdLogDp, dA_total, dN_total, dAdLogDp_std
+
+def plot_number_dist(smps_daily_mean_df, smps_daily_std_df):
+    '''
+    Description
+    ------------
+    Creates a plot of scanotron data.
+
+    Parameters
+    ------------
+    smps_daily_mean_df : pandas dataframe
+        Size distribution data where rows are size bins and columns are the mean of daily (or other timespan) data.
+    smps_daily_std_df : pandas dataframe
+        Size distribution standadr deviation data where rows are size bins and columns are the mean of daily (or other timespan) data.
+
+    Returns
+    ------------
+    fig
+        A plotly graph object.
+    '''
+    # create melted df
+    # create melted df
+    smps_daily_mean_melt = pd.melt(smps_daily_mean_df.reset_index(),id_vars=['Dp'], value_name='counts', var_name='sample')
+    smps_daily_std_melt = pd.melt(smps_daily_std_df.reset_index(),id_vars=['Dp'], value_name='counts', var_name='sample')
+    
+    smps_daily_mean_melt['sample'] = smps_daily_mean_melt['sample'].astype(str)
+    smps_daily_std_melt['sample'] = smps_daily_std_melt['sample'].astype(str)
+
+    tick_width=1
+    tick_loc='inside'
+    line_color='black'
+    line_width=1
+
+    xticks=7
+    x_tick_angle=45
+    x_title_size=14
+    x_tick_font_size=12
+    x_tick_font_color='black'
+    x_title_color='black'
+
+    yticks=7
+    y_title_size=16
+    y_tick_font_size=14
+    y_title_color="black"
+    y_tick_font_color = "black"
+
+    fig=px.line(smps_daily_mean_melt, x='Dp', y='counts', color='sample', facet_col='sample',
+     facet_col_wrap=5, error_y=smps_daily_std_melt['counts'])
+
+    fig.update_xaxes(type='log', title='D<sub>p</sub> (nm)')
+    fig.update_yaxes(type='log', title='dN/dLogD<sub>p</sub> (particles/cm<sup>3</sup>)')
+
+    fig.update_yaxes(range=[1,3.8],titlefont=dict(size=y_title_size, color=y_title_color), 
+                    ticks=tick_loc, nticks=yticks, tickwidth=tick_width, 
+                    tickfont=dict(size=y_tick_font_size, color=y_tick_font_color),
+                    showline=True, linecolor=line_color, linewidth=line_width)
+
+    fig.update_xaxes(showticklabels=True,ticks=tick_loc, nticks=xticks, tickwidth=tick_width, showline=True, 
+                    linecolor=line_color,linewidth=line_width, 
+                    titlefont=dict(size=x_title_size, color=x_title_color), 
+                    tickfont=dict(size=x_tick_font_size, color=x_tick_font_color))
+
+
+    for anno in fig['layout']['annotations']:
+        anno['text']=anno.text.split('=')[1]
+        
+    #for axis in fig.layout:
+     #   if type(fig.layout[axis]) == go.layout.YAxis and fig.layout[axis].anchor not in ['x','x16', 'x21', 'x11', 'x6']:
+      #      fig.layout[axis].title.text = ''
+
+            
+    fig.update_traces(mode='markers+lines')
+
+    fig.update_layout(showlegend=False, width=1100, height=1300, template='plotly_white')
+    
+    return fig
+    #fig.show(renderer="jpg")
+    #fig.write_image("manuscripts\\IN\\FIGURES\\figS4.png")
+
+def plot_surface_dist(dAdLogDp, dAdLogDp_std):
+    dAdLogDpMelt=dAdLogDp.reset_index().melt(id_vars='Dp')
+    dAdLogDpMelt['variable']=dAdLogDpMelt['variable'].astype(str)
+
+    dAdLogDpMelt_std = dAdLogDp_std.reset_index().melt(id_vars='Dp')
+    dAdLogDpMelt_std['variable'] = dAdLogDpMelt_std['variable'].astype(str)
+
+    dAdLogDpMelt['value_2'] = dAdLogDpMelt['value'] * 1e-6
+    dAdLogDpMelt_std['value_2'] = dAdLogDpMelt_std['value'] * 1e-6
+
+    tick_width=1
+    tick_loc='inside'
+    line_color='black'
+    line_width=1
+
+    xticks=7
+    x_tick_angle=45
+    x_title_size=14
+    x_tick_font_size=12
+    x_tick_font_color='black'
+    x_title_color='black'
+
+    yticks=7
+    y_title_size=16
+    y_tick_font_size=14
+    y_title_color="black"
+    y_tick_font_color = "black"
+
+    fig=px.line(dAdLogDpMelt, x='Dp', y='value_2', color='variable',facet_col='variable', facet_col_wrap=5,
+            error_y=dAdLogDpMelt_std['value_2'])
+    fig.update_xaxes(type='log', title='Dp (nm)')
+    fig.update_yaxes(title='dA/dLogDp (\u03BCm<sup>2</sup>/cm<sup>3</sup>)', type='log')
+
+    fig.update_yaxes(range=[-1,3],titlefont=dict(size=y_title_size, color=y_title_color), 
+                    ticks=tick_loc, nticks=yticks, tickwidth=tick_width, 
+                    tickfont=dict(size=y_tick_font_size, color=y_tick_font_color),
+                    showline=True, linecolor=line_color, linewidth=line_width)
+
+    fig.update_xaxes(showticklabels=True,ticks=tick_loc, nticks=xticks, tickwidth=tick_width, showline=True, 
+                    linecolor=line_color,linewidth=line_width, 
+                    titlefont=dict(size=x_title_size, color=x_title_color), 
+                    tickfont=dict(size=x_tick_font_size, color=x_tick_font_color))
+
+    for anno in fig['layout']['annotations']:
+        anno['text']=anno.text.split('=')[1]
+        
+    for axis in fig.layout:
+        if type(fig.layout[axis]) == go.layout.YAxis and fig.layout[axis].anchor not in ['x','x16', 'x21', 'x11', 'x6']:
+            fig.layout[axis].title.text = ''
+
+    fig.update_traces(mode='markers+lines')
+    fig.update_layout(showlegend=False, width=1100, height=1300, template='plotly_white')
+    return fig
+    #fig.write_image("manuscripts\\IN\\FIGURES\\response_figs\\figS4.png", scale=4)

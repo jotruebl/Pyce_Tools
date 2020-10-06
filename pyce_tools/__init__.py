@@ -12,12 +12,16 @@ import datetime
 
 '''
 TODO:
-Include function for plotting scano timeseries (see scanotron_magic_BHS) and downsampling to average of timespans.
+DONE Include function for plotting scano timeseries with error bars (see scanotron_magic_BHS) --> def plot_number_dist
+DONE Include function for calculating particle surface areas (see in_bio_analysis notebook) --> def surface_area
+DONE Function for plotting scano surface area time series with error bars --> def plot_surface_dist
+Function for downsampling to average of timespans.
+Handle Time Zones
 Include function for plotting INP various plots
-Include function for creating error bars for scanotron and ice nucleating particles (the INP uncertainties are created in spreadsheet, but more needs to be done before they can be plotted..see PEACETIME notebook)
+Include function for creating error bars for ice nucleating particles (the INP uncertainties are created in spreadsheet, but more needs to be done before they can be plotted..see PEACETIME notebook)
 Include function for calculating INP concentrations normalized by particle surface area (see in_bio_analysis notebook)
 Include function for calculating correlation terms (see PEACETIME notebooks)
-Include function for calculating particle surface areas (see in_bio_analysis notebook)
+
 '''
 
 
