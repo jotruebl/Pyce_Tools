@@ -242,7 +242,7 @@ def calculate_raw(blank_source, type_, location, process, sample_name,
     datetime_col = raw[0].str.split(' ', expand=True)
     raw.insert(0, 'day',datetime_col[0])
     raw[0]=datetime_col[1]
-    
+
     
     # drop the extra empty column at the end of every data file
     raw=raw.drop(columns=61)
@@ -354,6 +354,94 @@ def calculate_raw(blank_source, type_, location, process, sample_name,
     
     return print(f'...IN data calculated!\nFile saved to {save_path}.')
 
+def clean_calculated_in(type_, location):
+    big_df = pd.DataFrame()
+    for file in os.listdir('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'):
+    procs = ['UH','H']
+    if type_=='seawater':
+        for process in procs:
+            # load the file
+            df = pd.read_excel('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+file, sheet_name='summary_UF_'+process)
+            # rename annoying column names
+            df['T (*C)'] =df['T (*C)'].round(1)
+            # create a df for transforming 
+            current = pd.DataFrame()
+            # create transposed df and give it appropriate column names
+            fd = df.T
+            fd.columns = fd.loc['T (*C)',:]
+            # add data to current
+            current=current.append(fd.loc['IN/ml',:], ignore_index=True)
+            current['date'] = fd.iloc[-1,4]
+            current['hour'] = current['date'].iloc[0][9:]
+            #current['date'] = current['date'].iloc[0][0:8]
+            # turn columns into strings so they aren't ints
+            current.columns = current.columns.astype(str)
+            current['process'] = process
+            # append this to the final big_df
+            big_df=big_df.append(current)
+    elif type_ == 'aerosol' and if location == 'bubbler':
+            procs = ['UH','H']
+        for process in procs:
+            # load the file
+            df = pd.read_excel('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+file, sheet_name='summary_UF_'+process)
+            # rename annoying column names
+            df['T (*C)'] =df['T (*C)'].round(1)
+            # create a df for transforming 
+            current = pd.DataFrame()
+            # create transposed df and give it appropriate column names
+            fd = df.T
+            fd.columns = fd.loc['T (*C)',:]
+            # add data to current
+            current=current.append(fd.loc['IN/L (INP per liter of air)',:], ignore_index=True)
+            current['date'] = fd.iloc[-1,4]
+            current['hour'] = current['date'].iloc[0][9:]
+            current['start_date'] = current.loc[0,'date'][0:14]
+            current['stop_date'] = current.loc[0,'date'][23:]
+            if 'super' in file:
+                current['size'] = 'super'
+            if 'sub' in file:
+                current['size'] = 'sub'
+            #current['date'] = current['date'].iloc[0][0:8]
+            # turn columns into strings so they aren't ints
+            current.columns = current.columns.astype(str)
+            current['process'] = process
+            # append this to the final big_df
+            big_df=big_df.append(current)
+    elif type_=='aerosol' and if location == 'coriolis':
+        for process in procs:
+            # load the file
+            df = pd.read_excel('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+file, sheet_name='summary_UF_'+process)
+            # rename annoying column names
+            df['T (*C)'] =df['T (*C)'].round(1)
+            # create a df for transforming 
+            current = pd.DataFrame()
+            # create transposed df and give it appropriate column names
+            fd = df.T
+            fd.columns = fd.loc['T (*C)',:]
+            # add data to current
+            current=current.append(fd.loc['IN/L (INP per liter of air)',:], ignore_index=True)
+            current['date'] = fd.iloc[-1,4]
+            current['hour'] = current['date'].iloc[0][9:]
+            current['start_date'] = current.loc[0,'date'][0:14]
+            current['stop_date'] = current.loc[0,'date'][23:]
+            if 'super' in file:
+                current['size'] = 'super'
+            if 'sub' in file:
+                current['size'] = 'sub'
+            #current['date'] = current['date'].iloc[0][0:8]
+            # turn columns into strings so they aren't ints
+            current.columns = current.columns.astype(str)
+            current['process'] = process
+            # append this to the final big_df
+            big_df=big_df.append(current)
+
+    # save output to combined time series folder
+    strt=big_df['date'].min()[0:8]
+    end=big_df['date'].max()[0:8]
+    out_name = strt+'_'+end
+    big_df.to_csv('..\\data\\interim\\IN\\cleaned\\combinedtimeseries\\'type_'\\'+location+'_'+out_name+'.csv', index=False)
+    big_df.date=pd.to_datetime(big_df.date, dayfirst=True, format='%d%m%Y %Hh%M')
+
 def clean_inverted(inpath, nbins, outpath):
     '''
     Description
@@ -429,7 +517,7 @@ def clean_inverted(inpath, nbins, outpath):
     dfBig.to_csv(outpath+outName+'.csv')
     return dfBig, outName, dLogDp
 
-def clean_magic(inpath, outpath):
+def clean_magic(inpath, outpath, timezone):
     '''
     Description
     ------------
@@ -476,6 +564,10 @@ def clean_magic(inpath, outpath):
                 columns[name]=(columns[name]).replace("utc","time")
     dfBig.columns = columns
     dfBig.time=dfBig.time+DateOffset(hours=1)
+    dfBig.set_index('time',inplace=True)
+    dfBig=dfBig.tz_localize(None)
+    dfBig=dfBig.tz_localize(timezone)
+    dfBig.reset_index(inplace=True)
     dfBig['timeString'] = dfBig['time'].dt.strftime('%Y-%m-%d (%H:%M:%S)')
     dfBig=dfBig.set_index(['timeString'])
     strt=dfBig.index[0]
@@ -629,8 +721,8 @@ def plot_number_dist(smps_daily_mean_df, smps_daily_std_df):
                     tickfont=dict(size=x_tick_font_size, color=x_tick_font_color))
 
 
-    for anno in fig['layout']['annotations']:
-        anno['text']=anno.text.split('=')[1]
+    #for anno in fig['layout']['annotations']:
+    #    anno['text']=anno.text.split('=')[1]
         
     #for axis in fig.layout:
      #   if type(fig.layout[axis]) == go.layout.YAxis and fig.layout[axis].anchor not in ['x','x16', 'x21', 'x11', 'x6']:
@@ -699,3 +791,278 @@ def plot_surface_dist(dAdLogDp, dAdLogDp_std):
     fig.update_layout(showlegend=False, width=1100, height=1300, template='plotly_white')
     return fig
     #fig.write_image("manuscripts\\IN\\FIGURES\\response_figs\\figS4.png", scale=4)
+
+def wilsonLower(p, n=26, z = 1.96):
+    '''
+    p is the frozen fraction
+    n is number of tubes
+    z is confidence level
+    '''
+    try:
+        denominator = 1 + z**2/n
+        centre_adjusted_probability = p + z*z / (2*n)
+        adjusted_standard_deviation = math.sqrt((p*(1 - p) + z*z / (4*n)) / n)
+
+        lower_bound = (centre_adjusted_probability - z*adjusted_standard_deviation) / denominator
+        upper_bound = (centre_adjusted_probability + z*adjusted_standard_deviation) / denominator
+
+        return(lower_bound)
+    except ValueError:
+        return(0)
+
+def wilsonUpper(p, n=26, z = 1.96):
+    try:
+        denominator = 1 + z**2/n
+        centre_adjusted_probability = p + z*z / (2*n)
+        adjusted_standard_deviation = math.sqrt((p*(1 - p) + z*z / (4*n)) / n)
+
+        lower_bound = (centre_adjusted_probability - z*adjusted_standard_deviation) / denominator
+        upper_bound = (centre_adjusted_probability + z*adjusted_standard_deviation) / denominator
+
+        return(upper_bound)
+    except ValueError:
+        return(0)
+
+def calculate_wilson_errors(project, location, type_, n = 26):
+    '''
+    See wilsonCalculation.ipynb. This will take all calculated excel files and
+    create spreadsheets of error bars.
+    UPDATE
+    09/10/2020
+    Added functionality for creating error spreadsheets from sea2cloud experiment inp cleaned files.
+    '''
+    error_all = pd.DataFrame()
+  
+    # Send a calculated excel spreadsheet
+    # TO DO define parameters.
+    # cell_vol --> given in ml
+    #  In here, calculate the error_y and minus_y. Send both the bound and error_y, minus_y values all together so they can be used however.
+    if project == 'me3':
+        for file in os.listdir("..\\data\\interim\\IN\\calculated\\"+type_+"\\"+location):
+            if file.endswith('.xls'):
+                error=pd.DataFrame()
+                
+
+                singleFile= pd.read_excel('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+file, sheet_name='summary', header=5)
+                singleFile=singleFile.loc[:,'T (*C)':]    
+
+                singleFile['lowerBound']=singleFile['FrozenFraction'].apply(wilsonLower)
+                singleFile['upperBound']=singleFile['FrozenFraction'].apply(wilsonUpper)
+                
+                singleFile['upper_N-BLNK']=singleFile['upperBound']*n
+                singleFile['lower_N-BLNK']=singleFile['lowerBound']*n
+
+                singleFile['IN/tube_upper']=numpy.log(n)-numpy.log(n-singleFile['upper_N-BLNK'])
+                singleFile['IN/tube_lower']=numpy.log(n)-numpy.log(n-singleFile['lower_N-BLNK'])
+                
+                singleFile['IN/ml_upper']=singleFile['IN/tube_upper']/.2
+                singleFile['IN/ml_lower']=singleFile['IN/tube_lower']/.2
+                
+                singleFile['IN/L_upper']=singleFile['IN/ml_upper']*1000
+                singleFile['IN/L_lower']=singleFile['IN/ml_lower']*1000
+
+                error['IN/L_lower']=singleFile['IN/L_lower']
+                error['IN/L_upper']=singleFile['IN/L_upper']
+            
+                error['error_y'] = singleFile['IN/L_upper'] - singleFile['IN/L']
+                error['error_minus_y'] = abs(singleFile['IN/L_lower'] - singleFile['IN/L'])
+
+                error.index = singleFile['T (*C)'].round(1)
+
+                error = error.T
+                error.index.rename('value_name', inplace=True)
+                error.reset_index(inplace=True)
+                name = file.split('-')
+                
+                bag = name[2][1]
+                day = name[3]
+                day = day.replace('D','')
+                day = day.replace('.xls','')
+                day = int(day)
+                
+                error['day'] = day
+                error['bag'] = bag
+
+                error_all = pd.concat([error_all, error])
+        error_all.set_index(['day','bag','value_name'],inplace=True)        
+        error_all.to_csv('C:\\Users\\trueblood\\projects\\me3\\data\\interim\\IN\\cleaned\\seawater\\IN_error_wilson.csv')
+    else:
+        for file in os.listdir("..\\data\\interim\\IN\\calculated\\"+type_+"\\"+location):
+            if file.endswith('.xls'):
+                error=pd.DataFrame()
+                for proc in ['UH','H']:
+                    singleFile= pd.read_excel('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+file, sheet_name='summary_UF_'+process, header=0)   
+
+                    singleFile['lowerBound']=singleFile['FrozenFraction'].apply(wilsonLower)
+                    singleFile['upperBound']=singleFile['FrozenFraction'].apply(wilsonUpper)
+                    
+                    singleFile['upper_N-BLNK']=singleFile['upperBound']*n
+                    singleFile['lower_N-BLNK']=singleFile['lowerBound']*n
+
+                    singleFile['IN/tube_upper']=numpy.log(n)-numpy.log(n-singleFile['upper_N-BLNK'])
+                    singleFile['IN/tube_lower']=numpy.log(n)-numpy.log(n-singleFile['lower_N-BLNK'])
+                    
+                    singleFile['IN/ml_upper']=singleFile['IN/tube_upper']/.2
+                    singleFile['IN/ml_lower']=singleFile['IN/tube_lower']/.2
+                    
+                    singleFile['IN/L_upper']=singleFile['IN/ml_upper']*1000
+                    singleFile['IN/L_lower']=singleFile['IN/ml_lower']*1000
+
+                    error['IN/L_lower']=singleFile['IN/L_lower']
+                    error['IN/L_upper']=singleFile['IN/L_upper']
+                
+                    error['error_y'] = singleFile['IN/L_upper'] - singleFile['IN/L']
+                    error['error_minus_y'] = abs(singleFile['IN/L_lower'] - singleFile['IN/L'])
+
+                    error.index = singleFile['T (*C)'].round(1)
+
+                    error = error.T
+                    error.index.rename('value_name', inplace=True)
+                    error.reset_index(inplace=True)
+                    name = file.split('_')
+                    
+                    error['type'] = name[0]
+                    error['location']=name[1]
+                    error['filtered']=name[2]
+                    error['day']=name[3]
+                    error['time']=name[4]
+                    error['process'] = proc
+                    error_all = pd.concat([error_all, error])
+        error_all.set_index(['type','location','filtered','value_name','day','time','process'],inplace=True)        
+        error_all.to_csv('..\\data\\interim\\IN\\cleaned\\combinedtimeseries\\'+type_+'\\'location+'_'+day+time+'wilson_error.csv')
+
+def load_wilson_errors():
+    '''
+    See IN_Analysis_V1.ipynb. This will load and clean up the spreadsheets of error bars.
+    '''
+    pd.read_csv("C:\\Users\\trueblood\\projects\\me3\\data\\interim\\IN\\cleaned\\seawater\\IN_error_wilson.csv", sep=',', index_col=[0,1,2])
+    errors_melt = pd.melt(errors.reset_index(), id_vars=['bag','day', 'value_name'], value_name='error', var_name='T')
+
+def plot_inp():
+    '''
+    This accepts a dataframe of melted errors and of actual values which it should then combine and then plot itself.
+    Plot this INP with their error bars. See IN_Analysis_V1.ipynb and also
+    revised_plots from PEACETIME.
+    Error bars are given as the plus or minus direction, NOT the actual value.
+    Thus, need to calculate this by subtracting the actual value from the upper bound.
+    '''
+    tick_width=1
+    tick_loc='inside'
+    line_color='black'
+    line_width=1
+
+    xticks=10
+    x_tick_angle=45
+    x_title_size=15
+    x_tick_font_size=14
+    x_tick_font_color='black'
+    x_title_color='black'
+
+    y_title_size=15
+    y_tick_font_size=10
+    y_title_color="black"
+    y_tick_font_color = "black"
+
+    fig = go.Figure()
+
+
+    fig.add_trace(go.Scatter(mode='markers',x = sml_inp_melt_total['T C'], y = sml_inp_melt_total['in/l'], name = 'SML INP',
+    error_y=dict(
+                type='data',
+                symmetric=False,
+                array=sml_inp_melt_total['error_y'],
+                arrayminus=sml_inp_melt_total['error_minus_y'],
+                thickness=1.5,
+                width=5)
+    ))
+    fig.add_trace(go.Scatter(mode='markers',x = ssw_inp_melt_total['T C'], y = ssw_inp_melt_total['in/l'], name = 'SSW INP',opacity=0.70,
+    error_y=dict(
+                type='data',
+                symmetric=False,
+                array=ssw_inp_melt_total['error_y'],
+                arrayminus=ssw_inp_melt_total['error_minus_y'],
+                thickness=1.5,
+                width=5)
+    ))
+
+
+    fig.add_trace(go.Scatter(mode='lines',x = [-5,-16,-25,-10, -5], y = [3*10**4,3*10**4,4*10**6,4*10**6, 3*10**4], name = 'Wilson et al. (2015)'))
+
+    fig.add_trace(go.Scatter(mode='lines', x = [-10,-22,-28,-22, -15, -10], y = [3*10**4,3*10**4,1*10**7,1*10**7, 1*10**6, 3*10**4], name = 'Irish et al. (2017)'))
+
+    fig.add_trace(go.Scatter(mode='lines', x = [-5,-13,-16,-17, -11, -5], y = [2*10**4,2*10**4,2*10**5,4*10**6, 4*10**6, 2*10**4], name = 'Irish et al. (2019)'))
+
+    fig.add_trace(go.Scatter(mode='lines', x = [-9,-15,-16,-27, -24, -9], y = [1.8*10**2,1.8*10**2,2*10**3,4*10**6, 4*10**6, 1.8*10**2], name = 'Gong et al. (2020)'))
+
+    fig.update_yaxes(exponentformat='power', type='log')
+
+    fig.update_yaxes(nticks=20,range=[1.3,5],title="INP/L",
+                    titlefont=dict(size=y_title_size, color=y_title_color), 
+                    ticks=tick_loc, tickwidth=tick_width, tickfont=dict(size=y_tick_font_size, color=y_tick_font_color),
+                    showline=True, linecolor=line_color, linewidth=line_width)
+
+
+    fig.update_xaxes(title='Temperature (\u00B0C)', range=[-20,-3], ticks=tick_loc, nticks=xticks, tickwidth=tick_width,
+                    showline=True, linecolor=line_color, linewidth=line_width,
+                    tickangle=x_tick_angle, tickfont=dict(size=x_tick_font_size, color=x_tick_font_color),
+                    title_font=dict(size=x_title_size, color=x_title_color),
+                    )
+
+    fig.update_traces(marker=dict(size=5,line = dict(width=.5, color='black')
+                    ))
+
+    fig.update_layout(template='plotly_white', height=600, width=700, showlegend=True,  
+            legend=dict(title='',font=dict(size=14, color='black'), x=0.62, y=.5, bordercolor="Black", borderwidth=1))
+    #fig.write_image("manuscripts\\IN\\FIGURES\\response_figs\\fig_ssw_sml.png", scale=2)
+
+def CleanAqualog(instr, outpath):
+    '''
+    Summary:
+    
+    Loads all raw aqualog data files for a given instrument (aqlog1 or aqlog2) and cleans it up.
+    Returns the cleaned dataset to chosen outpath. 
+    
+    The steps of the cleaning process are as follows:
+        1) open all data files in te data/raw folder path
+        2) append all data files into one df
+        3) remove bad chars in column names
+        4) create a timeString column in UTC time
+        5) save df to csv in specified folder
+    
+    Parameters:
+    
+    instr (string): aqualog1 or aqualog2
+    outpath (string): location where cleaned csv file is saved.
+    
+    Returns:
+    
+    dfBig (df): the df that was just saved to a folder
+    outName (str): string of the start and end datetimes
+    
+    '''
+    dfBig=pd.DataFrame()
+    path='C:\\Users\\trueblood\\projects\\nz2020\\New-Zealand-2020\\data\\raw\\'+instr+'\\'
+
+    #Read in all the files in a given folder.
+    for file in os.listdir(path):
+        if file.endswith('.csv'):
+            df = pd.read_csv(path+file, sep='\t', parse_dates=['# UTC ISO8601'])
+            dfBig = dfBig.append(df)
+            # Read in column names
+            columns = pd.read_csv(path+file,nrows=0,sep='\t').columns.tolist()
+            # Remove all bad chars from column names
+            for name in range(len(columns)):
+                columns[name]=(columns[name]).strip()
+                columns[name]=(columns[name]).replace("#","")
+                columns[name]=(columns[name]).replace(" ","")
+                columns[name]=columns[name].lower()
+                columns[name]=(columns[name]).replace("utciso8601","time")
+    dfBig.columns = columns
+    dfBig['timeString'] = dfBig['time'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    dfBig=dfBig.set_index(['timeString'])
+    dfBig.time=dfBig.time.dt.tz_localize(None)
+    strt=dfBig.index[0]
+    end=dfBig.index[-1]
+    outName = strt[0:10]+'_'+end[0:10]
+    dfBig.to_csv(outpath+outName+'.csv')
+    return dfBig, outName

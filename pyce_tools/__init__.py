@@ -12,9 +12,6 @@ import datetime
 
 '''
 TODO:
-DONE Include function for plotting scano timeseries with error bars (see scanotron_magic_BHS) --> def plot_number_dist
-DONE Include function for calculating particle surface areas (see in_bio_analysis notebook) --> def surface_area
-DONE Function for plotting scano surface area time series with error bars --> def plot_surface_dist
 Function for downsampling to average of timespans.
 Handle Time Zones
 Include function for plotting INP various plots
