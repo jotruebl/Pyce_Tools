@@ -4,31 +4,39 @@ import plotly.express as px
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 import os
+import numpy
 
-def calculate_raw_blank(type_, process, sample_name, collection_date, analysis_date, issues, num_tubes, vol_tube = 0.2, rinse_vol = 20, size = None):
+def calculate_raw_blank(type_, process, location, sample_name, collection_date, analysis_date, issues, num_tubes, vol_tube = 0.2, rinse_vol = 20, size = None):
     '''
     Description
     ------------
-    Loads raw blank data from LINDA experiments and creates a calculated INP data file using given args.
-    Saves the output to an XLSX file which can be later used as the blank in sample calculations.
+    Loads raw data from LINDA BLANK experiments and creates a 'calculated' INP data file using given arguments.
+    Saves the output as an XLSX file which can be later used as the blank in sample calculations of LINDA experiments.
 
     Paths
     ------------
     raw input data: \\[PROJECT_ROOT]\\data\\raw\\IN\\blank\\[FILE]
     calculated output file: \\[PROJECT_ROOT]\\data\\interim\\IN\\calculated\\blank\\[FILE]
-
+    
+    Recent Updates
+    -------------
+    02/11/2020 - Improved documentation.
+    
     Parameters
     ------------
     type_ : str
-        The sample type for which this blank was collected. Note that 'mq' is for uway experiments. [bubbler, coriolis, mq, mq_wboat]
+        The sample type for which this blank was collected. Note that mq is for any seawater samples, whether they be from the underway or workboat. [aerosol, mq] 
     process : str
-        Identify whether the sample has been unfiltered or filtered. Unheated and heated processes are already included in the file. [uf,f]
+        Identify whether the sample has been left unfiltered (uf) or filtered (f). Unheated (UH) and heated (H) processes are already included in the file. [uf,f]
+    location : str
+        [bubbler, coriolis, mq, mq_wboat]
     sample_name : str
-        Sample source name as seen on the vial. 
+        Sample source name as seen on the vial. There is no rule on this, as it is simply stored as metadata, but ideally the sample name is following some kind of consistent standard.
     collection_date : str
-        Sample collection date in NZST time. [DDMMYYYY HHhMM for seawater samples dayXX for aerosols]
+        Sample collection date. Make note of your timezone, as the code does not assume one. 
+        This is used to help locate the raw data file. [DDMMYYYY HHhMM for seawater samples dayXX for aerosols].
     analysis_date : str
-        LINDA analysis date in NZST time. [DD/MM/YY]
+        Date of LINDA analysis in NZST time. [DD/MM/YY]
     issues : str
         Issues noted in the LINDA analysis log. [DEFAULT = None]
     num_tubes : int
@@ -36,28 +44,31 @@ def calculate_raw_blank(type_, process, sample_name, collection_date, analysis_d
     vol_tube : int
         Volume in ml of sample solution per tube. [DEFAULT = 0.2]
     rinse_vol : int
-        Volume in ml of mq water used for rinsing filters (if applicable).
+        Volume in ml of mq water used for rinsing filters, if the sample type_ makes use of a filter.
     size : str
-        Size of particles for filter samples (if applicable). [super, sub]
+        Size of particles for filter samples if sample was size resolved. [super, sub]
     
     Returns
     ------------
     xlsx
-        A spreadsheet of calculated blank data
+        A spreadsheet of calculated blank data.
     '''
     
+    
     # load raw data depending on sample type
-    if type_ == 'mq_wboat':
+    if type_ == 'mq':
         date = collection_date[:6]
-        inpath = '..\\data\\raw\\IN\\blank\\' + type_ + '_'+ 'blank' + '_' + process + '_' + date + '.csv'
+        inpath = '..\\data\\raw\\IN\\blank\\' + location + '_'+ 'blank' + '_' + process + '_' + date + '.csv'
         template = pd.read_excel('..\\in_calculation_template.xlsx', skiprows=1)
+    
     if type_ == 'aerosol':
         date = collection_date
         inpath = '..\\data\\raw\\IN\\blank\\' + location + '_'+ 'blank' + '_' + process + '_' + size + '_' + date + '.csv'
         template = pd.read_excel('..\\in_calculation_template_aerosols.xlsx', skiprows=1)
+    
     raw = pd.read_csv(inpath, sep = ' ', header = None, parse_dates=False)
     
-    # create the datetime df to split up the date and time into separate columns, then insert them into raw
+    # create a datetime df to split up the date and time into separate columns, then insert them into the raw spreadsheet
     datetime_col = raw[0].str.split(' ', expand=True)
     raw.insert(0, 'day',datetime_col[0])
     raw[0]=datetime_col[1]
@@ -81,6 +92,7 @@ def calculate_raw_blank(type_, process, sample_name, collection_date, analysis_d
                 '# tubes': num_tubes,
                 'ml/tube': vol_tube,
             }
+    
     if type_ == 'aerosol':
         meta_dict = {
             'raw data source': inpath,
@@ -357,90 +369,92 @@ def calculate_raw(blank_source, type_, location, process, sample_name,
 def clean_calculated_in(type_, location):
     big_df = pd.DataFrame()
     for file in os.listdir('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'):
-    procs = ['UH','H']
-    if type_=='seawater':
-        for process in procs:
-            # load the file
-            df = pd.read_excel('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+file, sheet_name='summary_UF_'+process)
-            # rename annoying column names
-            df['T (*C)'] =df['T (*C)'].round(1)
-            # create a df for transforming 
-            current = pd.DataFrame()
-            # create transposed df and give it appropriate column names
-            fd = df.T
-            fd.columns = fd.loc['T (*C)',:]
-            # add data to current
-            current=current.append(fd.loc['IN/ml',:], ignore_index=True)
-            current['date'] = fd.iloc[-1,4]
-            current['hour'] = current['date'].iloc[0][9:]
-            #current['date'] = current['date'].iloc[0][0:8]
-            # turn columns into strings so they aren't ints
-            current.columns = current.columns.astype(str)
-            current['process'] = process
-            # append this to the final big_df
-            big_df=big_df.append(current)
-    elif type_ == 'aerosol' and if location == 'bubbler':
-            procs = ['UH','H']
-        for process in procs:
-            # load the file
-            df = pd.read_excel('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+file, sheet_name='summary_UF_'+process)
-            # rename annoying column names
-            df['T (*C)'] =df['T (*C)'].round(1)
-            # create a df for transforming 
-            current = pd.DataFrame()
-            # create transposed df and give it appropriate column names
-            fd = df.T
-            fd.columns = fd.loc['T (*C)',:]
-            # add data to current
-            current=current.append(fd.loc['IN/L (INP per liter of air)',:], ignore_index=True)
-            current['date'] = fd.iloc[-1,4]
-            current['hour'] = current['date'].iloc[0][9:]
-            current['start_date'] = current.loc[0,'date'][0:14]
-            current['stop_date'] = current.loc[0,'date'][23:]
-            if 'super' in file:
-                current['size'] = 'super'
-            if 'sub' in file:
-                current['size'] = 'sub'
-            #current['date'] = current['date'].iloc[0][0:8]
-            # turn columns into strings so they aren't ints
-            current.columns = current.columns.astype(str)
-            current['process'] = process
-            # append this to the final big_df
-            big_df=big_df.append(current)
-    elif type_=='aerosol' and if location == 'coriolis':
-        for process in procs:
-            # load the file
-            df = pd.read_excel('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+file, sheet_name='summary_UF_'+process)
-            # rename annoying column names
-            df['T (*C)'] =df['T (*C)'].round(1)
-            # create a df for transforming 
-            current = pd.DataFrame()
-            # create transposed df and give it appropriate column names
-            fd = df.T
-            fd.columns = fd.loc['T (*C)',:]
-            # add data to current
-            current=current.append(fd.loc['IN/L (INP per liter of air)',:], ignore_index=True)
-            current['date'] = fd.iloc[-1,4]
-            current['hour'] = current['date'].iloc[0][9:]
-            current['start_date'] = current.loc[0,'date'][0:14]
-            current['stop_date'] = current.loc[0,'date'][23:]
-            if 'super' in file:
-                current['size'] = 'super'
-            if 'sub' in file:
-                current['size'] = 'sub'
-            #current['date'] = current['date'].iloc[0][0:8]
-            # turn columns into strings so they aren't ints
-            current.columns = current.columns.astype(str)
-            current['process'] = process
-            # append this to the final big_df
-            big_df=big_df.append(current)
+        procs = ['UH','H']
+        if type_=='seawater':
+            for process in procs:
+                # load the file
+                df = pd.read_excel('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+file, sheet_name='summary_UF_'+process)
+                # rename annoying column names
+                df['T (*C)'] =df['T (*C)'].round(1)
+                # create a df for transforming 
+                current = pd.DataFrame()
+                # create transposed df and give it appropriate column names
+                fd = df.T
+                fd.columns = fd.loc['T (*C)',:]
+                # add data to current
+                current=current.append(fd.loc['IN/ml',:], ignore_index=True)
+                current['datetime'] = fd.iloc[-1,4]
+                current['time'] = current['datetime'].iloc[0][9:]
+                #current['date'] = current['date'].iloc[0][0:8]
+                # turn columns into strings so they aren't ints
+                current.columns = current.columns.astype(str)
+                current['process'] = process
+                current['type'] = type_
+                current['location'] = location
+                current['filtered'] = 'uf'
+                # append this to the final big_df
+                big_df=big_df.append(current)
+        elif type_ == 'aerosol' and location == 'bubbler':
+            for process in procs:
+                # load the file
+                df = pd.read_excel('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+file, sheet_name='summary_UF_'+process)
+                # rename annoying column names
+                df['T (*C)'] =df['T (*C)'].round(1)
+                # create a df for transforming 
+                current = pd.DataFrame()
+                # create transposed df and give it appropriate column names
+                fd = df.T
+                fd.columns = fd.loc['T (*C)',:]
+                # add data to current
+                current=current.append(fd.loc['IN/L (INP per liter of air)',:], ignore_index=True)
+                current['date'] = fd.iloc[-1,4]
+                current['hour'] = current['date'].iloc[0][9:]
+                current['start_date'] = current.loc[0,'date'][0:14]
+                current['stop_date'] = current.loc[0,'date'][23:]
+                if 'super' in file:
+                    current['size'] = 'super'
+                if 'sub' in file:
+                    current['size'] = 'sub'
+                #current['date'] = current['date'].iloc[0][0:8]
+                # turn columns into strings so they aren't ints
+                current.columns = current.columns.astype(str)
+                current['process'] = process
+                # append this to the final big_df
+                big_df=big_df.append(current)
+        elif type_=='aerosol' and location == 'coriolis':
+            for process in procs:
+                # load the file
+                df = pd.read_excel('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+file, sheet_name='summary_UF_'+process)
+                # rename annoying column names
+                df['T (*C)'] =df['T (*C)'].round(1)
+                # create a df for transforming 
+                current = pd.DataFrame()
+                # create transposed df and give it appropriate column names
+                fd = df.T
+                fd.columns = fd.loc['T (*C)',:]
+                # add data to current
+                current=current.append(fd.loc['IN/L (INP per liter of air)',:], ignore_index=True)
+                current['date'] = fd.iloc[-1,4]
+                current['hour'] = current['date'].iloc[0][9:]
+                current['start_date'] = current.loc[0,'date'][0:14]
+                current['stop_date'] = current.loc[0,'date'][23:]
+                if 'super' in file:
+                    current['size'] = 'super'
+                if 'sub' in file:
+                    current['size'] = 'sub'
+                #current['date'] = current['date'].iloc[0][0:8]
+                # turn columns into strings so they aren't ints
+                current.columns = current.columns.astype(str)
+                current['process'] = process
+                # append this to the final big_df
+                big_df=big_df.append(current)
 
     # save output to combined time series folder
-    strt=big_df['date'].min()[0:8]
-    end=big_df['date'].max()[0:8]
+    strt=big_df['datetime'].min()[0:8]
+    end=big_df['datetime'].max()[0:8]
     out_name = strt+'_'+end
-    big_df.to_csv('..\\data\\interim\\IN\\cleaned\\combinedtimeseries\\'type_'\\'+location+'_'+out_name+'.csv', index=False)
-    big_df.date=pd.to_datetime(big_df.date, dayfirst=True, format='%d%m%Y %Hh%M')
+    big_df.to_csv('..\\data\\interim\\IN\\cleaned\\combinedtimeseries\\'+type_+'\\'+location+'_'+out_name+'.csv', index=False)
+    big_df.date=pd.to_datetime(big_df.datetime, dayfirst=True, format='%d%m%Y %Hh%M')
 
 def clean_inverted(inpath, nbins, outpath):
     '''
@@ -838,60 +852,64 @@ def calculate_wilson_errors(project, location, type_, n = 26):
     # cell_vol --> given in ml
     #  In here, calculate the error_y and minus_y. Send both the bound and error_y, minus_y values all together so they can be used however.
     if project == 'me3':
-        for file in os.listdir("..\\data\\interim\\IN\\calculated\\"+type_+"\\"+location):
-            if file.endswith('.xls'):
-                error=pd.DataFrame()
+        for proc in ['FILTERED','UNFILTERED']:
+            for file in os.listdir("..\\data\\interim\\IN\\calculated\\"+type_+"\\"+proc+'\\'):
+                if file.endswith('.xls'):
                 
+                    error=pd.DataFrame()
+                    singleFile= pd.read_excel('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+proc+'\\'+file, sheet_name='summary', header=5)
+                    singleFile=singleFile.loc[:,'T (*C)':]    
 
-                singleFile= pd.read_excel('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+file, sheet_name='summary', header=5)
-                singleFile=singleFile.loc[:,'T (*C)':]    
+                    singleFile['lowerBound']=singleFile['FrozenFraction'].apply(wilsonLower)
+                    singleFile['upperBound']=singleFile['FrozenFraction'].apply(wilsonUpper)
+                    
+                    singleFile['upper_N-BLNK']=singleFile['upperBound']*n
+                    singleFile['lower_N-BLNK']=singleFile['lowerBound']*n
 
-                singleFile['lowerBound']=singleFile['FrozenFraction'].apply(wilsonLower)
-                singleFile['upperBound']=singleFile['FrozenFraction'].apply(wilsonUpper)
+                    singleFile['IN/tube_upper']=numpy.log(n)-numpy.log(n-singleFile['upper_N-BLNK'])
+                    singleFile['IN/tube_lower']=numpy.log(n)-numpy.log(n-singleFile['lower_N-BLNK'])
+                    
+                    singleFile['IN/ml_upper']=singleFile['IN/tube_upper']/.2
+                    singleFile['IN/ml_lower']=singleFile['IN/tube_lower']/.2
+                    
+                    singleFile['IN/L_upper']=singleFile['IN/ml_upper']*1000
+                    singleFile['IN/L_lower']=singleFile['IN/ml_lower']*1000
+
+                    error['IN/L_lower']=singleFile['IN/L_lower']
+                    error['IN/L_upper']=singleFile['IN/L_upper']
                 
-                singleFile['upper_N-BLNK']=singleFile['upperBound']*n
-                singleFile['lower_N-BLNK']=singleFile['lowerBound']*n
+                    error['error_y'] = singleFile['IN/L_upper'] - singleFile['IN/L']
+                    error['error_minus_y'] = abs(singleFile['IN/L_lower'] - singleFile['IN/L'])
 
-                singleFile['IN/tube_upper']=numpy.log(n)-numpy.log(n-singleFile['upper_N-BLNK'])
-                singleFile['IN/tube_lower']=numpy.log(n)-numpy.log(n-singleFile['lower_N-BLNK'])
-                
-                singleFile['IN/ml_upper']=singleFile['IN/tube_upper']/.2
-                singleFile['IN/ml_lower']=singleFile['IN/tube_lower']/.2
-                
-                singleFile['IN/L_upper']=singleFile['IN/ml_upper']*1000
-                singleFile['IN/L_lower']=singleFile['IN/ml_lower']*1000
+                    error.index = singleFile['T (*C)'].round(1)
 
-                error['IN/L_lower']=singleFile['IN/L_lower']
-                error['IN/L_upper']=singleFile['IN/L_upper']
-            
-                error['error_y'] = singleFile['IN/L_upper'] - singleFile['IN/L']
-                error['error_minus_y'] = abs(singleFile['IN/L_lower'] - singleFile['IN/L'])
+                    error = error.T
+                    error.index.rename('value_name', inplace=True)
+                    error.reset_index(inplace=True)
+                    name = file.split('-')
+                    
+                    bag = name[2][1]
+                    day = name[3]
+                    day = day.replace('D','')
+                    day = day.replace('.xls','')
+                    day = int(day)
+                    
+                    error['day'] = day
+                    error['bag'] = bag
+                    error['filtered/unfiltered'] = proc
 
-                error.index = singleFile['T (*C)'].round(1)
+                    error_all = pd.concat([error_all, error])
 
-                error = error.T
-                error.index.rename('value_name', inplace=True)
-                error.reset_index(inplace=True)
-                name = file.split('-')
-                
-                bag = name[2][1]
-                day = name[3]
-                day = day.replace('D','')
-                day = day.replace('.xls','')
-                day = int(day)
-                
-                error['day'] = day
-                error['bag'] = bag
-
-                error_all = pd.concat([error_all, error])
-        error_all.set_index(['day','bag','value_name'],inplace=True)        
+        error_all.set_index(['day','bag','value_name','filtered/unfiltered'],inplace=True)        
         error_all.to_csv('C:\\Users\\trueblood\\projects\\me3\\data\\interim\\IN\\cleaned\\seawater\\IN_error_wilson.csv')
+
+
     else:
-        for file in os.listdir("..\\data\\interim\\IN\\calculated\\"+type_+"\\"+location):
-            if file.endswith('.xls'):
-                error=pd.DataFrame()
+        for file in os.listdir("..\\data\\interim\\IN\\calculated\\"+type_+"\\"+location+'\\'):
+            if file.endswith('.xlsx'):
                 for proc in ['UH','H']:
-                    singleFile= pd.read_excel('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+file, sheet_name='summary_UF_'+process, header=0)   
+                    error=pd.DataFrame()
+                    singleFile= pd.read_excel('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+file, sheet_name='summary_UF_'+proc, header=0)   
 
                     singleFile['lowerBound']=singleFile['FrozenFraction'].apply(wilsonLower)
                     singleFile['upperBound']=singleFile['FrozenFraction'].apply(wilsonUpper)
@@ -920,16 +938,23 @@ def calculate_wilson_errors(project, location, type_, n = 26):
                     error.index.rename('value_name', inplace=True)
                     error.reset_index(inplace=True)
                     name = file.split('_')
-                    
+                   
                     error['type'] = name[0]
                     error['location']=name[1]
                     error['filtered']=name[2]
-                    error['day']=name[3]
-                    error['time']=name[4]
+                    error['date']=name[3]
+                    error['time']=name[4][0:2]+'h'+name[4][2:4]
+                    error['datetime_str'] = error.date.astype(str)+' '+error.time
+                    error['datetime'] = pd.to_datetime(error['datetime_str'], format='%d%m%y %Hh%M')
                     error['process'] = proc
                     error_all = pd.concat([error_all, error])
-        error_all.set_index(['type','location','filtered','value_name','day','time','process'],inplace=True)        
-        error_all.to_csv('..\\data\\interim\\IN\\cleaned\\combinedtimeseries\\'+type_+'\\'location+'_'+day+time+'wilson_error.csv')
+        strt=error_all['date'].min()[0:8]
+        end=error_all['date'].max()[0:8]
+        out_name = strt+'_'+end
+        error_all = error_all.drop(columns='datetime_str')
+        error_all = error_all.drop(columns='date')
+        error_all.set_index(['type','location','filtered','value_name','time','process'],inplace=True)        
+        error_all.to_csv('..\\data\\interim\\IN\\cleaned\\combinedtimeseries\\'+type_+'\\'+location+'_'+out_name+'wilson_error.csv')
 
 def load_wilson_errors():
     '''
@@ -943,8 +968,6 @@ def plot_inp():
     This accepts a dataframe of melted errors and of actual values which it should then combine and then plot itself.
     Plot this INP with their error bars. See IN_Analysis_V1.ipynb and also
     revised_plots from PEACETIME.
-    Error bars are given as the plus or minus direction, NOT the actual value.
-    Thus, need to calculate this by subtracting the actual value from the upper bound.
     '''
     tick_width=1
     tick_loc='inside'
