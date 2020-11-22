@@ -5,6 +5,144 @@ import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 import os
 import numpy
+from openpyxl import load_workbook
+from openpyxl.utils.dataframe import dataframe_to_rows
+import datetime
+import scipy.stats as stats
+
+class inp(object):
+    
+    var_names_uway = {
+    'TRIPLET_TripletBeta660' : 'Triplet Beta',
+    'TRIPLET_TripletCDOM' : 'CDOM',
+    'TRIPLET_TripletChl' : 'Chl-a',
+    'prokaryoticpico-syne' : 'Prok. Pico. Syn.',
+    'nanophyto2-20um' : 'Nanophytoplankton',
+    'picophyto<2um' : 'Picophytoplankton',
+    'chla_cdom': 'chla/cdom',
+    'SB21_SB21sal':'salinity'
+    }
+
+    
+    def __init__(self, inp_type, inp_location, cyto_location, cyto_data, uway_bio_data, inp_data):
+        
+        self.inp_type = inp_type
+        self.inp_location = inp_location
+        self.uway_bio = uway_bio_data
+        self.cyto_bio = cyto_data[cyto_data['location']==cyto_location]
+        self.inp = inp_data[(inp_data['location']==inp_location)&(inp_data['type']==inp_type)]
+        self.results = {}
+    
+    def corr(self, data, regime, temp):
+        stat = pd.DataFrame()
+        n = pd.DataFrame()
+        pInput = pd.DataFrame()
+        statCombined = pd.DataFrame()
+        nCombined = pd.DataFrame()
+        regime = str(regime)
+        df=data
+        df = df.select_dtypes(exclude=['object'])
+        for column in df:
+            if column == regime:
+                continue
+            try:
+                stat = pd.DataFrame()
+                pInput = df.loc[:,[regime,column]].dropna()
+                ptest = stats.pearsonr(pInput[regime],pInput[column])
+                stat[column]=ptest
+                n = pInput.shape[0]
+                stat=stat.append({column:n}, ignore_index=True)
+                statT = stat.T
+                statCombined = statCombined.append(statT)
+            except ValueError:
+                continue
+                
+        statCombined['variable'] = statCombined.index
+        # Remove self-correlations
+        statCombined['variable']=statCombined['variable'].astype(str)
+        statCombined =statCombined[~statCombined['variable'].str.startswith('-')]
+        # Calculate R^2 and name columns
+        statCombined = statCombined.rename(columns={0:'R',1:'p', 2:'n'})
+        statCombined['R^2'] = statCombined['R']**2
+        
+        # Add information
+        statCombined['inp_temp']=temp
+        return(statCombined, df)
+
+
+    def sa_normalize(self, dA_total):
+        '''Function takes a dA_total and inp and calculates surface area normalized in units of INP/cm2
+
+        INPUT
+        
+        dA_total: total surface area integrated across all particle sizes for each day. Index should be a day number and SA should be in units of um2/cm3. If no index name, the function names for us.
+        inp: INP/l of air. Columns should only be temperatures. Any other identifying information should be in the index. Index needs to include day. '''
+
+        # ensure inp type is correct
+        if self.inp_type != 'aerosol':
+            return print('This function only works for aerosol type INP.')
+
+        # rename dA_total index if needed
+        if dA_total.index.name != 'day':
+            dA_total.index.rename('day', inplace=True)
+        
+        # add a column of day
+        if 'day' not in self.inp.columns:
+            self.inp['day'] = self.inp.index.day.astype(str)
+
+        # units of um2/cm3 convert to cm2/m3
+        dA_total_prep = dA_total*1e-8*1e6
+
+        # merge and set index
+        self.inp = pd.merge(self.inp.reset_index(), dA_total_prep.reset_index(), on='day', how='outer')
+
+        # calculate
+        self.inp['inp_sa_normalized'] = self.inp['inp/m^3'].div(self.inp['SA'])
+
+        return print('done')
+        
+
+    def correlations(self, temps, process, inp_units, dfs=None, size=None):
+        
+        self.results.update({process:{}})
+
+        for temp in temps:
+            self.results[process].update({temp:{}})
+            
+                
+            # sort index
+            self.inp = self.inp.sort_index()
+            self.uway_bio = self.uway_bio.sort_index()
+            self.cyto_bio = self.cyto_bio.sort_index()
+
+             # merge INP and uway bio dataframes on date. This process is slightly different if the INP type is aerosol
+            if self.inp_type =='aerosol':
+                inp_uway_bio = pd.merge_asof(self.inp[(self.inp['temp']==temp)&(self.inp['process']==process)&(self.inp['size']==size)][inp_units], self.uway_bio, left_index=True, right_index=True, direction='nearest')
+            
+            else:
+                inp_uway_bio = pd.merge_asof(self.inp[(self.inp['temp']==temp)&(self.inp['process']==process)][inp_units], self.uway_bio, left_index=True, right_index=True, direction='nearest')
+
+            # merge INP with cyto dataframes on date
+            inp_uway_bio_cyto_bio = pd.merge_asof(inp_uway_bio, self.cyto_bio, left_index=True, right_index=True, direction='nearest')
+            
+            df_corr = inp_uway_bio_cyto_bio
+
+            # if any dfs were given, merge them here
+            if dfs:
+                for df in dfs:
+                    df = df.sort_index()
+                    df_corr = pd.merge_asof(df_corr, df, left_index=True, right_index=True, direction='nearest')
+            
+            [corrs, data_combined] = self.corr(df_corr, inp_units, temp)
+            self.results[process][temp].update({'corrs':corrs})
+            self.results[process][temp].update({'data':data_combined})
+
+            
+            print(f'Calculating correlations {process} INP samples of type={self.inp_type} at {temp}...Done!')
+
+
+
+                
 
 def calculate_raw_blank(type_, process, location, sample_name, collection_date, analysis_date, issues, num_tubes, vol_tube = 0.2, rinse_vol = 20, size = None):
     '''
@@ -54,7 +192,7 @@ def calculate_raw_blank(type_, process, location, sample_name, collection_date, 
         A spreadsheet of calculated blank data.
     '''
     
-    
+
     # load raw data depending on sample type
     if type_ == 'mq':
         date = collection_date[:6]
@@ -112,7 +250,7 @@ def calculate_raw_blank(type_, process, location, sample_name, collection_date, 
     # insert the raw data into the template 
     if type_ == 'mq_wboat' or type_ == 'mq':
         template = load_workbook('..\\in_calculation_template.xlsx')
-    if type_ == 'bubbler':
+    if type_ == 'aerosol':
         template = load_workbook('..\\in_calculation_template_aerosols.xlsx')
     template.remove(template["data.csv"])
     sheet = template.create_sheet('data.csv')
@@ -121,13 +259,23 @@ def calculate_raw_blank(type_, process, location, sample_name, collection_date, 
     sheet.insert_rows(idx=0)
     
     # add metadata to spreadsheet
-    row = 0
-    for key, value in meta_dict.items():
-        template['summary_UF_UH']['r'][row].value = key
-        template['summary_UF_UH']['s'][row].value = value
-        template['summary_UF_H']['r'][row].value = key
-        template['summary_UF_H']['s'][row].value = value
-        row +=1
+    if type_ == 'aerosol':
+        row = 0
+        for key, value in meta_dict.items():
+            template['summary_UF_UH']['v'][row].value = key
+            template['summary_UF_UH']['w'][row].value = value
+            template['summary_UF_H']['v'][row].value = key
+            template['summary_UF_H']['w'][row].value = value
+            row +=1
+    if type_ =='mq_wboat' or type_ =='mq':
+        row = 0
+        for key, value in meta_dict.items():
+            template['summary_UF_UH']['z'][row].value = key
+            template['summary_UF_UH']['aa'][row].value = value
+            template['summary_UF_H']['z'][row].value = key
+            template['summary_UF_H']['aa'][row].value = value
+            row +=1
+    # save calculated report file to the appropriate folder
     if type_ == 'mq_wboat' or type_ == 'mq':
         template.save('..\\data\\interim\\IN\\calculated\\blank\\'+type_ + '_'+'blank'+'_' + process + '_' + date+'_calculated.xlsx')
     if type_ == 'aerosol':
@@ -158,6 +306,8 @@ def calculate_raw(blank_source, type_, location, process, sample_name,
     
     Recent Updates
     -------------
+    02/11/2020 - Further improved documentation.
+
     15/09/2020 - Improved documentation.
     
     11/09/2020 - Added code to create uncertainty for SEAWATER and AEROSOL samples based on Wilson Score. Score is calculated within the template notebook. Fixed a few bugs.
@@ -205,21 +355,6 @@ def calculate_raw(blank_source, type_, location, process, sample_name,
             Time in NZST at which sample collection was halted. Only valid for aerosol collections. [DDMMYYYY HHhMM]
     '''
 
-    
-    # Dictionary for mapping actual datetime of sample to the variable collection_date. Used for locating files (due to my poor file naming scheme).
-    aerosol_day_date = {
-        '17032020 11h25':'day01',
-        '18032020 11h01':'day02',
-        '19032020 11h06':'day03',
-        '20032020 11h21':'day04',
-        '21032020 11h09':'day05',
-        '22032020 11h22':'day06',
-        '23032020 10h54':'day07',
-        '24032020 11h03':'day08',
-        '25032020 11h45':'day09',
-        '26032020 11h28':'day10',
-    }
-    
     # Dictionary for mapping actual datetime of sample to the variable collection_date. Used for locating files (due to my poor file naming scheme).
     coriolis_day_date = {
         '18032020 13h00':'tg_04',
@@ -240,8 +375,9 @@ def calculate_raw(blank_source, type_, location, process, sample_name,
     
     if type_ == 'aerosol':
         if location == 'bubbler':
-            date = aerosol_day_date[collection_date]
-            inpath = '..\\data\\raw\\IN\\' + type_ + '\\' + type_ + '_' + location + '_' + process + '_' + size + '_'+ date + '.csv'
+            date = collection_date[:6]
+            time = collection_date[9:11]+collection_date[12:]
+            inpath = '..\\data\\raw\\IN\\' + type_ + '\\' + type_ + '_' + location + '_' + process + '_' + size + '_'+ date + '_' + time + '.csv'
             template = pd.read_excel('..\\in_calculation_template_aerosols.xlsx', skiprows=1)
         if location == 'coriolis':
             date = coriolis_day_date[collection_date]
@@ -277,6 +413,7 @@ def calculate_raw(blank_source, type_, location, process, sample_name,
                 'issues':issues,
                 'sigma' : 1.96
             }
+
     if type_ == 'aerosol':
         # Calculate sampling time in minutes
         t_start=datetime.datetime.strptime(collection_date, '%d%m%Y %Hh%M')
@@ -357,8 +494,8 @@ def calculate_raw(blank_source, type_, location, process, sample_name,
     
     if type_ == 'aerosol':
         if location == 'bubbler':
-            template.save('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+type_ + '_' + location + '_' + process + '_' + size + '_' + date+'_calculated.xlsx')
-            save_path = '..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+type_ + '_' + location + '_' + process + '_' + size + '_' + date+'_calculated.xlsx'
+            template.save('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+type_ + '_' + location + '_' + process + '_' + size + '_' + date + '_' + time + '_calculated.xlsx')
+            save_path = '..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+type_ + '_' + location + '_' + process + '_' + size + '_' + date + '_' + time + '_calculated.xlsx'
         if location == 'coriolis':
             template.save('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+type_ + '_' + location + '_' + process  + '_' + date+'_calculated.xlsx')
             save_path = '..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+type_ + '_' + location + '_' + process  + '_' + date+'_calculated.xlsx'
@@ -367,60 +504,115 @@ def calculate_raw(blank_source, type_, location, process, sample_name,
     return print(f'...IN data calculated!\nFile saved to {save_path}.')
 
 def clean_calculated_in(type_, location):
+    '''
+    Description
+    ------------
+    Creates an XLSX spreadsheet of cleaned data ready for analysis. 
+    
+    Paths
+    ------------
+    raw input data: \\[PROJECT_ROOT]\\data\\interim\\IN\\calculated\\[SAMPLE_TYPE]\\[SAMPLE_LOCATION]\\[FILE]
+    cleaned output file: \\[PROJECT_ROOT]\\data\\interim\\IN\\cleaned\\combinedtimeseries\\[SAMPLE_TYPE]\\[FILE]
+    
+    TODO
+    ------------
+    aerosol coriolis sample files should be changed to have similar information and format as seawater sample files.
+
+    Recent Updates
+    -------------
+    09/11/2020 - Fixed aerosol bubbler process to have similar information and format as seawater sample files.
+    02/11/2020 - Added documentation.
+    
+    Parameters
+    ------------
+        type_ : str
+            The sample type for which this blank was collected. [seawater, aerosol]
+        location : str
+            Where sample was collected. [uway, ASIT, wkbt_sml, wkbt_ssw, bubbler, coriolis]
+    '''
+    
+    
+    # create a dataframe that contains all of the data from each separate calculated file.
     big_df = pd.DataFrame()
+    
+    # cycle through all files in the folder
     for file in os.listdir('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'):
+        
+        # account for unheated and heated processes
         procs = ['UH','H']
         if type_=='seawater':
             for process in procs:
+                
                 # load the file
                 df = pd.read_excel('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+file, sheet_name='summary_UF_'+process)
+                
                 # rename annoying column names
                 df['T (*C)'] =df['T (*C)'].round(1)
+                
                 # create a df for transforming 
                 current = pd.DataFrame()
+                
                 # create transposed df and give it appropriate column names
                 fd = df.T
                 fd.columns = fd.loc['T (*C)',:]
+                
                 # add data to current
                 current=current.append(fd.loc['IN/ml',:], ignore_index=True)
                 current['datetime'] = fd.iloc[-1,4]
                 current['time'] = current['datetime'].iloc[0][9:]
-                #current['date'] = current['date'].iloc[0][0:8]
+                
                 # turn columns into strings so they aren't ints
                 current.columns = current.columns.astype(str)
+                
+                # add label data
                 current['process'] = process
                 current['type'] = type_
                 current['location'] = location
                 current['filtered'] = 'uf'
+                
                 # append this to the final big_df
                 big_df=big_df.append(current)
+        
+        
         elif type_ == 'aerosol' and location == 'bubbler':
             for process in procs:
+                
                 # load the file
                 df = pd.read_excel('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+file, sheet_name='summary_UF_'+process)
+                
                 # rename annoying column names
                 df['T (*C)'] =df['T (*C)'].round(1)
+                
                 # create a df for transforming 
                 current = pd.DataFrame()
+                
                 # create transposed df and give it appropriate column names
                 fd = df.T
                 fd.columns = fd.loc['T (*C)',:]
+                
                 # add data to current
-                current=current.append(fd.loc['IN/L (INP per liter of air)',:], ignore_index=True)
-                current['date'] = fd.iloc[-1,4]
-                current['hour'] = current['date'].iloc[0][9:]
-                current['start_date'] = current.loc[0,'date'][0:14]
-                current['stop_date'] = current.loc[0,'date'][23:]
+                current=current.append(fd.loc['IN/L',:], ignore_index=True)
+                current['datetime'] = fd.iloc[-1,4][0:14]
+                current['start_date'] = fd.iloc[-1,4][0:14]
+                current['stop_date'] = fd.iloc[-1,4][21:]
+
+                # turn columns into strings so they aren't ints
+                current.columns = current.columns.astype(str)
+
+                # add label data
                 if 'super' in file:
                     current['size'] = 'super'
                 if 'sub' in file:
                     current['size'] = 'sub'
-                #current['date'] = current['date'].iloc[0][0:8]
-                # turn columns into strings so they aren't ints
-                current.columns = current.columns.astype(str)
                 current['process'] = process
+                current['type'] = type_
+                current['location'] = location
+                current['filtered'] = 'uf'
+                
                 # append this to the final big_df
                 big_df=big_df.append(current)
+        
+        
         elif type_=='aerosol' and location == 'coriolis':
             for process in procs:
                 # load the file
@@ -454,7 +646,7 @@ def clean_calculated_in(type_, location):
     end=big_df['datetime'].max()[0:8]
     out_name = strt+'_'+end
     big_df.to_csv('..\\data\\interim\\IN\\cleaned\\combinedtimeseries\\'+type_+'\\'+location+'_'+out_name+'.csv', index=False)
-    big_df.date=pd.to_datetime(big_df.datetime, dayfirst=True, format='%d%m%Y %Hh%M')
+    #big_df.date=pd.to_datetime(big_df.datetime, dayfirst=True, format='%d%m%Y %Hh%M')
 
 def clean_inverted(inpath, nbins, outpath):
     '''
@@ -839,16 +1031,41 @@ def wilsonUpper(p, n=26, z = 1.96):
 
 def calculate_wilson_errors(project, location, type_, n = 26):
     '''
-    See wilsonCalculation.ipynb. This will take all calculated excel files and
-    create spreadsheets of error bars.
-    UPDATE
-    09/10/2020
-    Added functionality for creating error spreadsheets from sea2cloud experiment inp cleaned files.
+    Description
+    ------------
+    Takes calculated report files and creates a csv of error bars. The csv is saved in the same location as the cleaned combined time series data file.
+    lower and upper bounds for blank subtracted frozen fraction of tubes are calculated using subfunctions (upperBound, lowerBound, respectively). 
+    These fractions are then converted to a number of blank subtracted tubes that are frozen (upper_N-BLNK, lower_N-BLNK, respectively).
+    These bounds are then converted into INP/tube upper and lower bounds. Then they are converted to IN/mL and IN/L upper and lower bounds.
+    Finally, the difference between each bound and the original observed value is calculated to determine the size of the error bars.
+
+    Paths
+    ------------
+    raw input data: \\[PROJECT_ROOT]\\data\\interim\\IN\\calculated\\[SAMPLE_TYPE]\\[SAMPLE_LOCATION]\\[FILE]
+    cleaned output file: \\[PROJECT_ROOT]\\data\\interim\\IN\\cleaned\\combinedtimeseries\\[SAMPLE_TYPE]\\[FILE]
+    
+    TODO
+    ------------
+    Add code to determine error bars for aerosol samples. This can be done by changing the template for calculated aerosol samples and then following the same steps as for seawater sample types shown below.
+
+    Recent Updates
+    -------------
+    02/11/2020 - Added documentation.
+    
+    Parameters
+    ------------
+        project : str
+            The project. This needs to be defined since projects before Sea2Cloud were saved in different formats. [me3, nz2020]
+        location : str
+            Where sample was collected. [uway, ASIT, wkbt_sml, wkbt_ssw, bubbler, coriolis]
+        type_ : str
+            Description
+        n : int
+            Number of tubes.
     '''
     error_all = pd.DataFrame()
   
-    # Send a calculated excel spreadsheet
-    # TO DO define parameters.
+
     # cell_vol --> given in ml
     #  In here, calculate the error_y and minus_y. Send both the bound and error_y, minus_y values all together so they can be used however.
     if project == 'me3':
@@ -908,46 +1125,74 @@ def calculate_wilson_errors(project, location, type_, n = 26):
         for file in os.listdir("..\\data\\interim\\IN\\calculated\\"+type_+"\\"+location+'\\'):
             if file.endswith('.xlsx'):
                 for proc in ['UH','H']:
-                    error=pd.DataFrame()
-                    singleFile= pd.read_excel('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+file, sheet_name='summary_UF_'+proc, header=0)   
+                    if type_ == 'seawater':
+                        error=pd.DataFrame()
+                        singleFile= pd.read_excel('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+file, sheet_name='summary_UF_'+proc, header=0)   
 
-                    singleFile['lowerBound']=singleFile['FrozenFraction'].apply(wilsonLower)
-                    singleFile['upperBound']=singleFile['FrozenFraction'].apply(wilsonUpper)
+                        singleFile['lowerBound']=singleFile['FrozenFraction'].apply(wilsonLower)
+                        singleFile['upperBound']=singleFile['FrozenFraction'].apply(wilsonUpper)
+                        
+                        singleFile['upper_N-BLNK']=singleFile['upperBound']*n
+                        singleFile['lower_N-BLNK']=singleFile['lowerBound']*n
+
+                        singleFile['IN/tube_upper']=numpy.log(n)-numpy.log(n-singleFile['upper_N-BLNK'])
+                        singleFile['IN/tube_lower']=numpy.log(n)-numpy.log(n-singleFile['lower_N-BLNK'])
+                        
+                        singleFile['IN/ml_upper']=singleFile['IN/tube_upper']/.2
+                        singleFile['IN/ml_lower']=singleFile['IN/tube_lower']/.2
+                        
+                        singleFile['IN/L_upper']=singleFile['IN/ml_upper']*1000
+                        singleFile['IN/L_lower']=singleFile['IN/ml_lower']*1000
+
+                        error['IN/L_lower']=singleFile['IN/L_lower']
+                        error['IN/L_upper']=singleFile['IN/L_upper']
                     
-                    singleFile['upper_N-BLNK']=singleFile['upperBound']*n
-                    singleFile['lower_N-BLNK']=singleFile['lowerBound']*n
+                        error['error_y'] = singleFile['IN/L_upper'] - singleFile['IN/L']
+                        error['error_minus_y'] = abs(singleFile['IN/L_lower'] - singleFile['IN/L'])
 
-                    singleFile['IN/tube_upper']=numpy.log(n)-numpy.log(n-singleFile['upper_N-BLNK'])
-                    singleFile['IN/tube_lower']=numpy.log(n)-numpy.log(n-singleFile['lower_N-BLNK'])
+                        error.index = singleFile['T (*C)'].round(1)
+
+                        error = error.T
+                        error.index.rename('value_name', inplace=True)
+                        error.reset_index(inplace=True)
+                        name = file.split('_')
                     
-                    singleFile['IN/ml_upper']=singleFile['IN/tube_upper']/.2
-                    singleFile['IN/ml_lower']=singleFile['IN/tube_lower']/.2
+                        error['type'] = name[0]
+                        error['location']=name[1]
+                        error['filtered']=name[2]
+                        error['date']=name[3]
+                        error['time']=name[4][0:2]+'h'+name[4][2:4]
+                        error['datetime_str'] = error.date.astype(str)+' '+error.time
+                        error['datetime'] = pd.to_datetime(error['datetime_str'], format='%d%m%y %Hh%M')
+                        error['process'] = proc
                     
-                    singleFile['IN/L_upper']=singleFile['IN/ml_upper']*1000
-                    singleFile['IN/L_lower']=singleFile['IN/ml_lower']*1000
+                    elif type_ == 'aerosol':
+                        error=pd.DataFrame()
+                        singleFile= pd.read_excel('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+file, sheet_name='summary_UF_'+proc, header=0)   
 
-                    error['IN/L_lower']=singleFile['IN/L_lower']
-                    error['IN/L_upper']=singleFile['IN/L_upper']
-                
-                    error['error_y'] = singleFile['IN/L_upper'] - singleFile['IN/L']
-                    error['error_minus_y'] = abs(singleFile['IN/L_lower'] - singleFile['IN/L'])
+                        error['IN/L_lower']=singleFile['lower INP/L']
+                        error['IN/L_upper']=singleFile['upper INP/L']
+                    
+                        error['error_y'] = error['IN/L_upper'] - singleFile['IN/L']
+                        error['error_minus_y'] = abs(error['IN/L_lower'] - singleFile['IN/L'])
 
-                    error.index = singleFile['T (*C)'].round(1)
+                        error.index = singleFile['T (*C)'].round(1)
 
-                    error = error.T
-                    error.index.rename('value_name', inplace=True)
-                    error.reset_index(inplace=True)
-                    name = file.split('_')
-                   
-                    error['type'] = name[0]
-                    error['location']=name[1]
-                    error['filtered']=name[2]
-                    error['date']=name[3]
-                    error['time']=name[4][0:2]+'h'+name[4][2:4]
-                    error['datetime_str'] = error.date.astype(str)+' '+error.time
-                    error['datetime'] = pd.to_datetime(error['datetime_str'], format='%d%m%y %Hh%M')
-                    error['process'] = proc
+                        error = error.T
+                        error.index.rename('value_name', inplace=True)
+                        error.reset_index(inplace=True)
+                        name = file.split('_')
+                        error['type'] = name[0]
+                        error['location']=name[1]
+                        error['filtered']=name[2]
+                        error['size'] = name[3]
+                        error['date']=name[4]
+                        error['time']=name[5][0:2]+'h'+name[5][2:4]
+                        error['datetime_str'] = error.date.astype(str)+' '+error.time
+                        error['datetime'] = pd.to_datetime(error['datetime_str'], format='%d%m%y %Hh%M')
+                        error['process'] = proc
                     error_all = pd.concat([error_all, error])
+        
         strt=error_all['date'].min()[0:8]
         end=error_all['date'].max()[0:8]
         out_name = strt+'_'+end
