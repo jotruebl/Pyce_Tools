@@ -4,11 +4,14 @@ A PYthon library for loading, cleaning, and analyzing iCE nucleating particle (I
 
 Pyce Tools allows users to easily:
 
-* Create experiment report files (xlsx format) by loading and processing raw experiment (or blank) csv data files from the LED-based Ice Nucleation Detection Apparatus (LINDA).
+* Create experiment report files (xlsx format) by loading and processing raw experiment (or blank) csv data files of seawater or filter extract samples obtained from the LED-based Ice Nucleation Detection Apparatus (LINDA).
+* Create cleaned, combined time series files from experiment report files for further processing and analysis in Python.
 * Load and wrangle inverted differential mobility particle sizer (DMPS) data from LAMP's Scanotron instrument and condensation particle counter (CPC, TSI Inc.) time series data files into single time series files which are readily manipulated for further exploratory data analysis (EDA).
 * Load pre-processed DMPS data files for EDA.
-* Plot time series of surface area and number size distributions
-* Create plots of common INP graphs with Wilson error bars (Agresti).
+* Plot time series of particle surface area and number size distributions.
+* Create plots of common INP graphs, including comparison with literature values.
+* Normalize INP concentrations by particle surface area.
+* Calculate and plot correlations between seawater parameters and INP concentrations.
 
 
 ## Installation
@@ -37,20 +40,20 @@ import pyce_tools.pyce_tools as pt
 ```
 
 
-## TO DO
+## Planned Updates
 
 * :heavy_check_mark: Clean and prep LINDA experiment report files into a single time series dataset for exploratory analysis (error bars and data) --> clean_calculated_in;calculate_wilson_errors
 * :heavy_check_mark: Include functions for plotting surface area and number size distribution timeseries (error bars included) --> plot_number_dist; plot_surface_dist
 * Function for downsampling to average of user-selected time periods.
-* Include function for plotting common INP plots
-* Improve time zone handling
+* :heavy_check_mark: Include function for plotting common INP plots
+* :heavy_check_mark: Improve time zone handling
 * :heavy_check_mark: Include function for creating error bars for ice nucleating particles --> calculate_wilson_errors
-* Include function for calculating INP concentrations normalized by particle surface area (see nz2020 in_bio_analysis notebook)
-* Include function for calculating correlation terms (see PEACETIME notebooks)
+* :heavy_check_mark: Include function for calculating INP concentrations normalized by particle surface area
+* :heavy_check_mark: Include function for calculating correlations
 * :heavy_check_mark: Include function for calculating particle surface areas --> surface_area
-* Update documentation
-* Include function for loading wilson errors
-* update clean_aqualog fucntion
+* :construction: Update documentation
+* :heavy_check_mark: Include function for calculating and loading uncertainties
+* update clean_aqualog function
 
 
 ## Contributing

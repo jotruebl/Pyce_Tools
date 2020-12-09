@@ -25,7 +25,32 @@ class inp(object):
 
     
     def __init__(self, inp_type, inp_location, cyto_location, cyto_data, uway_bio_data, inp_data):
-        
+        '''
+        Description
+        ------------
+        INP object. Will consist of INP of a specific type and location and bio data collected from a specific location.
+        For example, an object named inp_uway would have inp of type seawater from location uway and cyto and uway bio data from uway. If you wanted to compare this
+        INP data with cyto from a different location, a new INP object would need to be made.        
+         Parameters
+        ------------
+        self : obj
+            The INP object.
+        inp_type : str
+            The sample type for which this sample was collected. [seawater, aerosol]
+        inp_location : str
+            Where sample was collected. [uway, ASIT, wkbt_sml, wkbt_ssw, bubbler, coriolis]
+        cyto_location : 
+            String to idnex the cyto_data df.
+        cyto_data : df
+            A dataframe of cyto data. Each row is an observation.
+            Index should be named 'datetime' and columns are whatever measurements were taken. A location column must be present as it is indexed.
+        uway_bio_data : df
+            A dataframe of bio data. Each row is an observation.
+            Index should be named 'datetime' and columns are whatever measurements were taken.
+        inp_data : df
+            A dataframe of INP data. Each row is an observation.
+            Index should be named 'datetime'. Columns should include process, filtered, location, type, temp, concentration (inp/ml or inp/l) and uncertainty.
+        '''
         self.inp_type = inp_type
         self.inp_location = inp_location
         self.uway_bio = uway_bio_data
@@ -140,9 +165,6 @@ class inp(object):
             
             print(f'Calculating correlations {process} INP samples of type={self.inp_type} at {temp}...Done!')
 
-
-
-                
 
 def calculate_raw_blank(type_, process, location, sample_name, collection_date, analysis_date, issues, num_tubes, vol_tube = 0.2, rinse_vol = 20, size = None):
     '''
@@ -302,7 +324,6 @@ def calculate_raw(blank_source, type_, location, process, sample_name,
     ------------
     Take average of all blanks and insert rather than just using one blank file right now.
     Include functionality for filtered seawater samples.
-    Correct future bug for the fact that uway samples will soon have time included in their filenames as multiple daily samples were collected.
     
     Recent Updates
     -------------
@@ -312,7 +333,7 @@ def calculate_raw(blank_source, type_, location, process, sample_name,
     
     11/09/2020 - Added code to create uncertainty for SEAWATER and AEROSOL samples based on Wilson Score. Score is calculated within the template notebook. Fixed a few bugs.
 
-    21/08/2020 - Added code on seawater and aerosol outpath to account for location (i.e., wkbt or uway). Now saves to 
+    21/08/2020 - Added code on seawater and aerosol outpath to account for location (i.e., wboat or uway). Now saves to 
     a separate folder within the respective type folder.
 
     11/08/2020 - Added functionality for Coriolis samples.
@@ -328,7 +349,7 @@ def calculate_raw(blank_source, type_, location, process, sample_name,
         type_ : str
             The sample type for which this blank was collected. [seawater, aerosol]
         location : str
-            Where sample was collected. [uway, ASIT, wkbt_sml, wkbt_ssw, bubbler, coriolis]
+            Where sample was collected. [uway, ASIT, wboatsml, wboatssw, bubbler, coriolis]
         process : str
              Identify whether the sample has been unfiltered or filtered. Unheated and heated processes are already included in the file. [uf,f]
         sample_name : str 
@@ -336,7 +357,7 @@ def calculate_raw(blank_source, type_, location, process, sample_name,
         collection_date : str 
             sample collection date in NZST. [DDMMYYYY HHhMM for seawater and aerosol samples.]
         analysis_date : str
-            LINDA analysis date in NZst. [DD/MM/YY]
+            LINDA analysis date in NZST. [DD/MM/YY]
         issues : str
             Issues noted in the LINDA analysis log. [DEFAULT = None]
         num_tubes : int
@@ -355,7 +376,8 @@ def calculate_raw(blank_source, type_, location, process, sample_name,
             Time in NZST at which sample collection was halted. Only valid for aerosol collections. [DDMMYYYY HHhMM]
     '''
 
-    # Dictionary for mapping actual datetime of sample to the variable collection_date. Used for locating files (due to my poor file naming scheme).
+    # Dictionary for mapping actual datetime of sample to the variable collection_date. Used for locating files (due to my poor file naming scheme) and can be ignored by anyone not working with
+    # coriolis samples from the 2020 S2C Tangaroa Cruise.
     coriolis_day_date = {
         '18032020 13h00':'tg_04',
         '21032020 13h00':'tg_6',
@@ -366,32 +388,42 @@ def calculate_raw(blank_source, type_, location, process, sample_name,
     }
     
     
-    # load raw data depending on sample type
+    # load raw data depending on sample type (seawater vs aerosol)
     if type_ == 'seawater':
+        # extract date and time from input parameters
         date = collection_date[:6]
         time = collection_date[9:11]+collection_date[12:]
+        # use input parameters to build path to source file
         inpath = '..\\data\\raw\\IN\\' + type_ + '\\' + type_ + '_' + location + '_' + process + '_' + date + '_' + time + '.csv'
+        # load analysis template
         template = pd.read_excel('..\\in_calculation_template.xlsx', skiprows=1)
     
     if type_ == 'aerosol':
         if location == 'bubbler':
+            # extract date and time from input parameters
             date = collection_date[:6]
             time = collection_date[9:11]+collection_date[12:]
+            # use input parameters to build path to source file
             inpath = '..\\data\\raw\\IN\\' + type_ + '\\' + type_ + '_' + location + '_' + process + '_' + size + '_'+ date + '_' + time + '.csv'
+            # load analysis template
             template = pd.read_excel('..\\in_calculation_template_aerosols.xlsx', skiprows=1)
         if location == 'coriolis':
+            # extract date and time from input parameters
             date = coriolis_day_date[collection_date]
+            # use input parameters to build path to source file
             inpath = '..\\data\\raw\\IN\\' + type_ + '\\' + type_ + '_' + location + '_' + process + '_' + date + '.csv'
+            # load analysis template
             template = pd.read_excel('..\\in_calculation_template_aerosols.xlsx', skiprows=1)
+    
+    # read in the raw data csv
     raw = pd.read_csv(inpath, sep = ' ', header = None, parse_dates=False)
     
-    
+
     # create a datetime df to split up the date and time into separate columns, then insert them
     datetime_col = raw[0].str.split(' ', expand=True)
     raw.insert(0, 'day',datetime_col[0])
     raw[0]=datetime_col[1]
 
-    
     # drop the extra empty column at the end of every data file
     raw=raw.drop(columns=61)
     
@@ -442,7 +474,6 @@ def calculate_raw(blank_source, type_, location, process, sample_name,
         meta_dict['sigma'] = 1.96
 
     
-    
     # insert the raw data into the template 
     if type_ == 'seawater':
         template = load_workbook('..\\in_calculation_template.xlsx')
@@ -487,11 +518,10 @@ def calculate_raw(blank_source, type_, location, process, sample_name,
         row += 1
     
     
-    # Save output
+    # Save output depending on IN type
     if type_ == 'seawater':
         template.save('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+type_ + '_' + location + '_' + process + '_' + date + '_' + time +'_calculated.xlsx')
         save_path = '..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+type_ + '_' + location + '_' + process + '_' + date + '_' + time +'_calculated.xlsx'
-    
     if type_ == 'aerosol':
         if location == 'bubbler':
             template.save('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+type_ + '_' + location + '_' + process + '_' + size + '_' + date + '_' + time + '_calculated.xlsx')
@@ -500,8 +530,8 @@ def calculate_raw(blank_source, type_, location, process, sample_name,
             template.save('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+type_ + '_' + location + '_' + process  + '_' + date+'_calculated.xlsx')
             save_path = '..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+type_ + '_' + location + '_' + process  + '_' + date+'_calculated.xlsx'
     
-    
-    return print(f'...IN data calculated!\nFile saved to {save_path}.')
+
+    return print(f'...IN data calculated!\nCalculated report file saved to {save_path}.')
 
 def clean_calculated_in(type_, location):
     '''
@@ -528,19 +558,21 @@ def clean_calculated_in(type_, location):
         type_ : str
             The sample type for which this blank was collected. [seawater, aerosol]
         location : str
-            Where sample was collected. [uway, ASIT, wkbt_sml, wkbt_ssw, bubbler, coriolis]
+            Where sample was collected. [uway, ASIT, wkbtsml, wkbtssw, bubbler, coriolis]
     '''
     
     
-    # create a dataframe that contains all of the data from each separate calculated file.
+    # create a dataframe that will contain all of the data from each separate calculated file.
     big_df = pd.DataFrame()
     
-    # cycle through all files in the folder
+    # cycle through all calculated report files in the folder
     for file in os.listdir('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'):
         
         # account for unheated and heated processes
         procs = ['UH','H']
+
         if type_=='seawater':
+            
             for process in procs:
                 
                 # load the file
@@ -556,8 +588,8 @@ def clean_calculated_in(type_, location):
                 fd = df.T
                 fd.columns = fd.loc['T (*C)',:]
                 
-                # add data to current
-                current=current.append(fd.loc['IN/ml',:], ignore_index=True)
+                # add data to dataframe
+                current= current.append(fd.loc['IN/ml',:], ignore_index=True)
                 current['datetime'] = fd.iloc[-1,4]
                 current['time'] = current['datetime'].iloc[0][9:]
                 
@@ -570,11 +602,11 @@ def clean_calculated_in(type_, location):
                 current['location'] = location
                 current['filtered'] = 'uf'
                 
-                # append this to the final big_df
+                # append this to the final dataframe
                 big_df=big_df.append(current)
         
-        
         elif type_ == 'aerosol' and location == 'bubbler':
+            
             for process in procs:
                 
                 # load the file
@@ -612,9 +644,10 @@ def clean_calculated_in(type_, location):
                 # append this to the final big_df
                 big_df=big_df.append(current)
         
-        
         elif type_=='aerosol' and location == 'coriolis':
+            
             for process in procs:
+                
                 # load the file
                 df = pd.read_excel('..\\data\\interim\\IN\\calculated\\'+type_+'\\'+location+'\\'+file, sheet_name='summary_UF_'+process)
                 # rename annoying column names
@@ -624,20 +657,24 @@ def clean_calculated_in(type_, location):
                 # create transposed df and give it appropriate column names
                 fd = df.T
                 fd.columns = fd.loc['T (*C)',:]
+                
                 # add data to current
                 current=current.append(fd.loc['IN/L (INP per liter of air)',:], ignore_index=True)
                 current['date'] = fd.iloc[-1,4]
                 current['hour'] = current['date'].iloc[0][9:]
                 current['start_date'] = current.loc[0,'date'][0:14]
                 current['stop_date'] = current.loc[0,'date'][23:]
+                
+                # add label data
                 if 'super' in file:
                     current['size'] = 'super'
                 if 'sub' in file:
                     current['size'] = 'sub'
-                #current['date'] = current['date'].iloc[0][0:8]
+
                 # turn columns into strings so they aren't ints
                 current.columns = current.columns.astype(str)
                 current['process'] = process
+                
                 # append this to the final big_df
                 big_df=big_df.append(current)
 
@@ -672,7 +709,7 @@ def clean_inverted(inpath, nbins, outpath):
     Returns
     ------------
     dfBig
-        Dataframe of combined time series of scanotron data. Rows are timestring and columns include time, diameters, and year, month, day,	hour, minute, second, pex, tex, rhsh	           tgrad, nb, dbeg, dend, conctotal.
+        Dataframe of combined time series of scanotron data. Rows are timestring and columns include time, diameters, and year, month, day,	hour, minute, second, pex, tex, rhsh, tgrad, nb, dbeg, dend, conctotal.
     outName
         Name of the file that is saved to the computer.
     dLogDp
@@ -804,7 +841,7 @@ def load_scano_data(date_string, instrument):
     dN
         A dataframe of particle counts where rows are dates and columns are diameters.
     dNdLogDp
-        A dataframe of log-normalized particle counts where rows are dates and columns are dameters.
+        A dataframe of log-normalized particle counts where rows are dates and columns are diameters.
     '''
     # Read in the cleaned and combinedtimeseries scanotron data
     df=pd.read_csv(
@@ -1043,10 +1080,6 @@ def calculate_wilson_errors(project, location, type_, n = 26):
     ------------
     raw input data: \\[PROJECT_ROOT]\\data\\interim\\IN\\calculated\\[SAMPLE_TYPE]\\[SAMPLE_LOCATION]\\[FILE]
     cleaned output file: \\[PROJECT_ROOT]\\data\\interim\\IN\\cleaned\\combinedtimeseries\\[SAMPLE_TYPE]\\[FILE]
-    
-    TODO
-    ------------
-    Add code to determine error bars for aerosol samples. This can be done by changing the template for calculated aerosol samples and then following the same steps as for seawater sample types shown below.
 
     Recent Updates
     -------------
@@ -1057,7 +1090,7 @@ def calculate_wilson_errors(project, location, type_, n = 26):
         project : str
             The project. This needs to be defined since projects before Sea2Cloud were saved in different formats. [me3, nz2020]
         location : str
-            Where sample was collected. [uway, ASIT, wkbt_sml, wkbt_ssw, bubbler, coriolis]
+            Where sample was collected. [uway, ASIT, wkbtsml, wkbtssw, bubbler, coriolis]
         type_ : str
             Description
         n : int
