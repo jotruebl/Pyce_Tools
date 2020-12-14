@@ -92,8 +92,8 @@ class inp(object):
         
         # Add information
         statCombined['inp_temp']=temp
+        
         return(statCombined, df)
-
 
     def sa_normalize(self, dA_total):
         '''Function takes a dA_total and inp and calculates surface area normalized in units of INP/cm2
@@ -126,7 +126,6 @@ class inp(object):
 
         return print('done')
         
-
     def correlations(self, temps, process, inp_units, dfs=None, size=None):
         
         self.results.update({process:{}})
@@ -164,7 +163,197 @@ class inp(object):
 
             
             print(f'Calculating correlations {process} INP samples of type={self.inp_type} at {temp}...Done!')
+    
+    def plot_corr_scatter(self, temp, units, processes, row_num):
+        colors = ['steelblue','firebrick']
+        tick_loc='inside'
+        tick_width=2
+        tick_length=10
+        line_color='black'
+        line_width=2
 
+        xticks=10
+        x_tick_angle=45
+        x_tick_font_size=16
+        x_tick_font_color='black'
+
+        x_title_size=20
+        x_title_color='black'
+
+        yticks=10
+        y_tick_angle = 90
+        y_tick_font_size=16
+        y_tick_font_color = "black"
+
+        y_title_size=20
+        y_title_color="black"
+        
+        vert_space = .10
+        horz_space = .095
+
+            
+        # rows_needed = round(len(self.var_names_uway.keys())/3) + 1
+        rows_needed = row_num
+
+        fig = make_subplots(rows = rows_needed, cols = 3, shared_xaxes=False, shared_yaxes=False,
+                            horizontal_spacing = horz_space, vertical_spacing=vert_space, print_grid=False
+                            )
+
+        row_num = 1
+        col_num = 1
+
+        for variable in self.var_names_uway:
+            
+            ytitle=f'INP<sub>{self.inp_location}</sub>'
+            xtitle = variable
+            
+            i = 0
+
+            for temperature in temp:
+
+                for process in processes:
+                    datay_string = temperature
+                    datax = self.results[process][temperature]['data'].dropna(subset=[units, variable])
+
+
+                    fig.add_trace(go.Scatter(
+                            name = process, 
+                            y= datax[units],
+                            x= datax[variable],
+                            mode="markers", connectgaps=True,
+                            marker=dict(color=colors[i], symbol='circle-open')),
+                            row=row_num,
+                            col = col_num)
+
+
+                    data_trendline=self.results[process][temperature]['data'].dropna(subset=[variable, units])
+
+                    fig_trend = px.scatter(data_trendline, x=variable, y=units, trendline="ols")
+                    trendline = fig_trend.data[1] 
+                    fig_trend.update_traces(line=dict(color=colors[i],dash='dash'))
+                    fig.add_trace(go.Scatter(trendline), row=row_num, col=col_num)
+
+
+
+                    fig.update_xaxes(row=row_num, col = col_num, 
+                            title=dict(text=xtitle, font=dict(size=x_title_size, color=x_title_color)), 
+                            exponentformat='power', tickangle = x_tick_angle,
+                            ticks=tick_loc, nticks=xticks, tickwidth=tick_width, ticklen=tick_length, showline=True, 
+                            linecolor=line_color,linewidth=line_width,  
+                            tickfont=dict(size=x_tick_font_size, color=x_tick_font_color))
+
+                    fig.update_yaxes(row=row_num, col = col_num, 
+                            title=dict(text=ytitle,font=dict(size=y_title_size, color=y_title_color)),
+                            exponentformat='power',  
+                            ticks=tick_loc, nticks=10, tickwidth=tick_width, ticklen=tick_length,
+                            tickfont=dict(size=y_tick_font_size, color=y_tick_font_color),
+                            showline=True, linecolor=line_color, linewidth=line_width)
+
+                    fig.update_traces(marker=dict(size=10,
+                                line = dict(width=2, color='DarkSlateGrey')))
+
+
+                # make for all situations. only bold if significant.
+                    if self.results[process][temperature]['corrs'].loc[variable,'p'] < .05:
+                        anno_text = '<b>R<sup>2</sup>=' + str(round(self.results[process][temperature]['corrs'].loc[variable,'R^2'],2))
+
+                    elif self.results[process][temperature]['corrs'].loc[variable,'p'] > .05:
+                        anno_text = 'R<sup>2</sup>=' + str(round(self.results[process][temperature]['corrs'].loc[variable,'R^2'],2))
+                    
+                    x_val = [0.01, 0.41, 0.80]
+                    y_val = round((1-(row_num-1)*(1/(rows_needed-.35)))-i*.035,3)
+
+
+                    fig.add_annotation(
+                        showarrow=False,
+                        xref="paper",
+                        yref="paper",
+                        x=x_val[col_num-1],
+                        y=y_val,
+                        text = anno_text,
+                        font=dict(size=18, color=colors[i]))
+
+
+                    fig.update_layout(width=1500, height=400*rows_needed, template='plotly_white',showlegend=False, title=f'Correlation Scatter Plots for {self.inp_location} at {temperature}')
+                    i+=1
+                            
+
+            col_num+=1
+            if col_num%4 == 0:
+                col_num=1
+                row_num +=1
+        #fig.write_image(selection+'.png', scale=3)
+        #fig.show()
+        return fig
+
+    def plot_ins_inp(self):
+        if self.inp_type != 'aerosol':
+            return print('INP object must be aerosol type. To plot seawater type INP, use plot_sml_inp or plot_ssw_inp.')
+        fig=go.Figure()
+
+        fig.add_trace(
+            go.Scatter(name='Unheated - (submicron)',
+                x=self.inp[self.inp['process'] == 'UH']['temp'],
+                y=self.inp[self.inp['process'] == 'UH']['inp_sa_normalized'],
+                mode='markers',
+                marker=dict(size=7, color='blue',line = dict(width=1, color='black'))))
+
+        fig.add_trace(
+            go.Scatter(name='Heated - (submicron)',
+                x=self.inp[self.inp['process'] == 'H']['temp'],
+                y=self.inp[self.inp['process'] == 'H']['inp_sa_normalized'],
+                mode='markers',
+                marker=dict(size=7, color='red',line = dict(width=1, color='black'))))
+
+        fig.add_trace(
+            go.Scatter(name='DeMott et al. (2016) Caribbean, Arctic, Pacific, Bering Sea - Ambient',
+                x=[-13, -25, -15, -13],
+                y=[1, 900, 20, 1],
+                mode="lines", connectgaps=True, line=dict(color="tomato", width=1.5))
+        )
+
+        fig.add_trace(
+            go.Scatter(name='DeMott et al. (2016) SIO Pier seawater - Waveflume/MART',
+                x=[-15, -25, -23, -13, -15],
+                y=[.2, 40, 100, 1, .2],
+                mode="lines", connectgaps=True)
+        )
+
+        fig.add_trace(
+            go.Scatter(name='McCluskey et al. (2017) SIO Pier seawater - Waveflume',
+                x=[-10, -23, -30, -30, -10, -10],
+                y=[1.5, 20, 300, 500, 70, 1.5],
+                mode="lines", connectgaps=True, line=dict(color="deepskyblue", width=1.5))
+        )
+
+        fig.add_trace(
+            go.Scatter(name='McCluskey et al. (2018b) Southern Ocean - Ambient',
+                x=[-12, -18, -26, -26, -12],
+                y=[.4, 0.2, 100, 8000, 0.4],
+                mode="lines", connectgaps=True, line=dict(color="darkgoldenrod", width=1.5))
+        )
+
+        fig.add_trace(
+            go.Scatter(name='Gong et al. (2020) Cabo Verde - Ambient',
+                x=[-10, -11, -20, -19, -10],
+                y=[2, .3, 12, 100, 2],
+                mode="lines", connectgaps=True, line=dict(color="seagreen", width=1.5))
+        )
+
+        fig.update_yaxes(type='log', title='INP per cm<sup>2</sup> of SSA Surface (D<sub>p</sub> = 10-500nm)', exponentformat='power')
+        fig.update_xaxes( title='Temperature (\u00B0C)',range=[-30.5,-5], exponentformat='power')
+
+        fig.update_yaxes(linewidth=2, tickwidth=2, ticklen=10, ticks='inside',
+                        showline=True,linecolor='black', tickfont=dict(size=16), title_font=dict(size=16))
+
+        fig.update_xaxes(linewidth=2, tickwidth=2, ticklen=10,
+                        ticks='inside', showline=True, linecolor='black', tickfont=dict(size=16), title_font=dict(size=16))
+        
+        fig.update_layout(template='plotly_white', 
+            width=700, height=600, 
+            showlegend=True, legend=dict(title='', font=dict(size=10, color='black'), x=0.2, y=1.2, bordercolor="black", borderwidth=1))
+
+        return fig
 
 def calculate_raw_blank(type_, process, location, sample_name, collection_date, analysis_date, issues, num_tubes, vol_tube = 0.2, rinse_vol = 20, size = None):
     '''
@@ -1241,11 +1430,9 @@ def load_wilson_errors():
     pd.read_csv("C:\\Users\\trueblood\\projects\\me3\\data\\interim\\IN\\cleaned\\seawater\\IN_error_wilson.csv", sep=',', index_col=[0,1,2])
     errors_melt = pd.melt(errors.reset_index(), id_vars=['bag','day', 'value_name'], value_name='error', var_name='T')
 
-def plot_inp():
+def plot_sml_inp(inp_df):
     '''
-    This accepts a dataframe of melted errors and of actual values which it should then combine and then plot itself.
-    Plot this INP with their error bars. See IN_Analysis_V1.ipynb and also
-    revised_plots from PEACETIME.
+    This accepts a dataframe of INP values along with their uncertainties and plots heated vs unheated as well as literature values.
     '''
     tick_width=1
     tick_loc='inside'
@@ -1267,25 +1454,30 @@ def plot_inp():
     fig = go.Figure()
 
 
-    fig.add_trace(go.Scatter(mode='markers',x = sml_inp_melt_total['T C'], y = sml_inp_melt_total['in/l'], name = 'SML INP',
-    error_y=dict(
-                type='data',
-                symmetric=False,
-                array=sml_inp_melt_total['error_y'],
-                arrayminus=sml_inp_melt_total['error_minus_y'],
-                thickness=1.5,
-                width=5)
-    ))
-    fig.add_trace(go.Scatter(mode='markers',x = ssw_inp_melt_total['T C'], y = ssw_inp_melt_total['in/l'], name = 'SSW INP',opacity=0.70,
-    error_y=dict(
-                type='data',
-                symmetric=False,
-                array=ssw_inp_melt_total['error_y'],
-                arrayminus=ssw_inp_melt_total['error_minus_y'],
-                thickness=1.5,
-                width=5)
-    ))
+    fig.add_trace(go.Scatter(mode='markers',
+            x = inp_df[inp_df['process']=='UH']['temp'], y = inp_df[inp_df['process']=='UH']['inp/l'], name = 'Unheated SML', 
+            error_y=dict(
+                    type='data',
+                    symmetric=False,
+                    array=inp_df[inp_df['process']=='UH']['error_y'],
+                    arrayminus=inp_df[inp_df['process']=='UH']['error_minus_y'],
+                    thickness=1.5,
+                    width=5)
+            ))
 
+    fig.add_trace(go.Scatter(mode='markers',
+        x = inp_df[inp_df['process']=='H']['temp'], y = inp_df[inp_df['process']=='H']['inp/l'], name = 'Heated SML', 
+        error_y=dict(
+                type='data',
+                symmetric=False,
+                array=inp_df[inp_df['process']=='H']['error_y'],
+                arrayminus=inp_df[inp_df['process']=='H']['error_minus_y'],
+                thickness=1.5,
+                width=5)
+        ))
+
+
+    fig.add_trace(go.Scatter(mode='lines',x = [-15,-20,-25,-22, -17, -15, -15], y = [0.6*10**3,0.6*10**3,60*10**3,60*10**3, 2*10**3, 2*10**3, 0.6*10**3], name = 'McCluskey et al. (2018) (Southern Ocean)'))
 
     fig.add_trace(go.Scatter(mode='lines',x = [-5,-16,-25,-10, -5], y = [3*10**4,3*10**4,4*10**6,4*10**6, 3*10**4], name = 'Wilson et al. (2015)'))
 
@@ -1295,9 +1487,11 @@ def plot_inp():
 
     fig.add_trace(go.Scatter(mode='lines', x = [-9,-15,-16,-27, -24, -9], y = [1.8*10**2,1.8*10**2,2*10**3,4*10**6, 4*10**6, 1.8*10**2], name = 'Gong et al. (2020)'))
 
+    fig.add_trace(go.Scatter(mode='lines', x = [-10,-15,-16.5,-16.5, -15, -10], y = [1.9*10**2,1.9*10**2,9*10**2,2*10**4, 2*10**4, 1.9*10**2], name = 'Trueblood et al. (2020) - Microlayer'))
+    
     fig.update_yaxes(exponentformat='power', type='log')
 
-    fig.update_yaxes(nticks=20,range=[1.3,5],title="INP/L",
+    fig.update_yaxes(nticks=20, range=[1.3,5], title="INP/L",
                     titlefont=dict(size=y_title_size, color=y_title_color), 
                     ticks=tick_loc, tickwidth=tick_width, tickfont=dict(size=y_tick_font_size, color=y_tick_font_color),
                     showline=True, linecolor=line_color, linewidth=line_width)
@@ -1314,7 +1508,89 @@ def plot_inp():
 
     fig.update_layout(template='plotly_white', height=600, width=700, showlegend=True,  
             legend=dict(title='',font=dict(size=14, color='black'), x=0.62, y=.5, bordercolor="Black", borderwidth=1))
-    #fig.write_image("manuscripts\\IN\\FIGURES\\response_figs\\fig_ssw_sml.png", scale=2)
+    
+    return fig
+
+def plot_ssw_inp(inp_df):
+    '''
+    This accepts a dataframe of INP values along with their uncertainties and plots heated vs unheated as well as literature values.
+    '''
+    tick_width=1
+    tick_loc='inside'
+    line_color='black'
+    line_width=1
+
+    xticks=10
+    x_tick_angle=45
+    x_title_size=15
+    x_tick_font_size=14
+    x_tick_font_color='black'
+    x_title_color='black'
+
+    y_title_size=15
+    y_tick_font_size=10
+    y_title_color="black"
+    y_tick_font_color = "black"
+
+    fig = go.Figure()
+
+
+    fig.add_trace(go.Scatter(mode='markers',
+            x = inp_df[inp_df['process']=='UH']['temp'], y = inp_df[inp_df['process']=='UH']['inp/l'], name = 'Unheated SSW', 
+            error_y=dict(
+                    type='data',
+                    symmetric=False,
+                    array=inp_df[inp_df['process']=='UH']['error_y'],
+                    arrayminus=inp_df[inp_df['process']=='UH']['error_minus_y'],
+                    thickness=1.5,
+                    width=5)
+            ))
+
+    fig.add_trace(go.Scatter(mode='markers',
+        x = inp_df[inp_df['process']=='H']['temp'], y = inp_df[inp_df['process']=='H']['inp/l'], name = 'Heated SSW', 
+        error_y=dict(
+                type='data',
+                symmetric=False,
+                array=inp_df[inp_df['process']=='H']['error_y'],
+                arrayminus=inp_df[inp_df['process']=='H']['error_minus_y'],
+                thickness=1.5,
+                width=5)
+        ))
+
+
+    fig.add_trace(go.Scatter(mode='lines',x = [-15,-20,-25,-22, -17, -15, -15], y = [0.6*10**3,0.6*10**3,60*10**3,60*10**3, 2*10**3, 2*10**3, 0.6*10**3], name = 'McCluskey et al. (2018) (Southern Ocean)'))
+
+    fig.add_trace(go.Scatter(mode='lines',x = [-5,-16,-25,-10, -5], y = [3*10**4,3*10**4,4*10**6,4*10**6, 3*10**4], name = 'Wilson et al. (2015)'))
+
+    fig.add_trace(go.Scatter(mode='lines', x = [-10,-22,-28,-22, -15, -10], y = [3*10**4,3*10**4,1*10**7,1*10**7, 1*10**6, 3*10**4], name = 'Irish et al. (2017)'))
+
+    fig.add_trace(go.Scatter(mode='lines', x = [-5,-13,-16,-17, -11, -5], y = [2*10**4,2*10**4,2*10**5,4*10**6, 4*10**6, 2*10**4], name = 'Irish et al. (2019)'))
+
+    fig.add_trace(go.Scatter(mode='lines', x = [-9,-15,-16,-27, -24, -9], y = [1.8*10**2,1.8*10**2,2*10**3,4*10**6, 4*10**6, 1.8*10**2], name = 'Gong et al. (2020)'))
+    
+    fig.add_trace(go.Scatter(mode='lines', x = [-13,-15,-16.5,-16.5, -14, -13], y = [1.9*10**2,1.9*10**2,4*10**2,4*10**3, 2*10**3, 1.9*10**2], name = 'Trueblood et al. (2020) - Seawater'))
+
+    fig.update_yaxes(exponentformat='power', type='log')
+
+    fig.update_yaxes(nticks=20, range=[1.3,5], title="INP/L",
+                    titlefont=dict(size=y_title_size, color=y_title_color), 
+                    ticks=tick_loc, tickwidth=tick_width, tickfont=dict(size=y_tick_font_size, color=y_tick_font_color),
+                    showline=True, linecolor=line_color, linewidth=line_width)
+
+
+    fig.update_xaxes(title='Temperature (\u00B0C)', range=[-20,-3], ticks=tick_loc, nticks=xticks, tickwidth=tick_width,
+                    showline=True, linecolor=line_color, linewidth=line_width,
+                    tickangle=x_tick_angle, tickfont=dict(size=x_tick_font_size, color=x_tick_font_color),
+                    title_font=dict(size=x_title_size, color=x_title_color),
+                    )
+
+    fig.update_traces(marker=dict(size=5,line = dict(width=.5, color='black')
+                    ))
+
+    fig.update_layout(template='plotly_white', height=600, width=700, showlegend=True,  
+            legend=dict(title='',font=dict(size=14, color='black'), x=0.62, y=.5, bordercolor="Black", borderwidth=1))
+    
+    return fig
 
 def CleanAqualog(instr, outpath):
     '''
