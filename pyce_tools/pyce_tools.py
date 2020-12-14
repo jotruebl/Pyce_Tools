@@ -31,16 +31,17 @@ class inp(object):
         INP object. Will consist of INP of a specific type and location and bio data collected from a specific location.
         For example, an object named inp_uway would have inp of type seawater from location uway and cyto and uway bio data from uway. If you wanted to compare this
         INP data with cyto from a different location, a new INP object would need to be made.        
-         Parameters
+        
+        Parameters
         ------------
         self : obj
             The INP object.
         inp_type : str
             The sample type for which this sample was collected. [seawater, aerosol]
         inp_location : str
-            Where sample was collected. [uway, ASIT, wkbt_sml, wkbt_ssw, bubbler, coriolis]
+            Where sample was collected. [uway, ASIT, wkbtsml, wkbtssw, bubbler, coriolis]
         cyto_location : 
-            String to idnex the cyto_data df.
+            String to index the cyto_data df.
         cyto_data : df
             A dataframe of cyto data. Each row is an observation.
             Index should be named 'datetime' and columns are whatever measurements were taken. A location column must be present as it is indexed.
