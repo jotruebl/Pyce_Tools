@@ -293,14 +293,14 @@ class inp(object):
         fig=go.Figure()
 
         fig.add_trace(
-            go.Scatter(name='Unheated - (submicron)',
+            go.Scatter(name='Unheated',
                 x=self.inp[self.inp['process'] == 'UH']['temp'],
                 y=self.inp[self.inp['process'] == 'UH']['inp_sa_normalized'],
                 mode='markers',
                 marker=dict(size=7, color='blue',line = dict(width=1, color='black'))))
 
         fig.add_trace(
-            go.Scatter(name='Heated - (submicron)',
+            go.Scatter(name='Heated',
                 x=self.inp[self.inp['process'] == 'H']['temp'],
                 y=self.inp[self.inp['process'] == 'H']['inp_sa_normalized'],
                 mode='markers',
