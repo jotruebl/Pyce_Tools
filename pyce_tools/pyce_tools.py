@@ -498,72 +498,50 @@ def calculate_raw_blank(type_, process, location, sample_name, collection_date, 
 def calculate_raw(blank_source, type_, location, process, sample_name, 
                   collection_date, analysis_date, issues, num_tubes, vol_tube = 0.2, rinse_vol = 20, size = None,
                   flow_start = None, flow_stop = None, sample_stop_time = None):
-    '''
-    Description
-    ------------
+    '''Calculates raw data.
+    
+    
     Creates an XLSX spreadsheet of blank corrected, calculated INP data for samples using given args. 
     Resulting spreadsheet has a seperate tab for unheated and heated samples, with respective metadata in each.
     Saves the output to interim calculated folder --> data/interim/IN/calculated/[seawater or aerosols].
     
-    Paths
+    Parameters
+    ----------
+    blank_source : str
+        Path to source of calculated blank data. Currently accepts one file, but need to account for average of multiple files. 
+    type_ : str
+        The sample type for which this blank was collected. [seawater, aerosol]
+    location : str
+        Where sample was collected. [uway, ASIT, wboatsml, wboatssw, bubbler, coriolis]
+    process : str
+            Identify whether the sample has been unfiltered or filtered. Unheated and heated processes are already included in the file. [uf,f]
+    sample_name : str 
+        sample source name as seen on the vial. 
+    collection_date : str 
+        sample collection date in NZST. [DDMMYYYY HHhMM for seawater and aerosol samples.]
+    analysis_date : str
+        LINDA analysis date in NZST. [DD/MM/YY]
+    issues : str
+        Issues noted in the LINDA analysis log. [DEFAULT = None]
+    num_tubes : int
+            Number of tubes per heated/unheated analysis. [DEFAULT = 26]
+    vol_tube : int
+        Volume in ml of sample solution per tube. [DEFAULT = 0.2]
+    rinse_vol : int
+        Volume in ml of mq water used for rinsing filters (aerosol sample types only).
+    size : str
+        Size of particles for filter samples (if applicable). Defaults to None if not given. Only used for aerosol samples. [super, sub]
+    flow_start : float 
+        Flow rate in LPM at start of sampling. Only used for aerosol samples.
+    flow_stop : float
+        Flow rate in LPM at end of sampling. Only used for aerosol samples.
+    sample_stop_time : str
+        Time in NZST at which sample collection was halted. Only valid for aerosol collections. [DDMMYYYY HHhMM]
+    
+    Notes
     ------------
     raw input data: \\[PROJECT_ROOT]\\data\\raw\\IN\\[SAMPLE_TYPE]\\[FILE]
     calculated output file: \\[PROJECT_ROOT]\\data\\interim\\IN\\calculated\\[SAMPLE_TYPE]\\[SAMPLE_LOCATION]\\[FILE]
-    
-    TODO
-    ------------
-    Take average of all blanks and insert rather than just using one blank file right now.
-    Include functionality for filtered seawater samples.
-    
-    Recent Updates
-    -------------
-    02/11/2020 - Further improved documentation.
-
-    15/09/2020 - Improved documentation.
-    
-    11/09/2020 - Added code to create uncertainty for SEAWATER and AEROSOL samples based on Wilson Score. Score is calculated within the template notebook. Fixed a few bugs.
-
-    21/08/2020 - Added code on seawater and aerosol outpath to account for location (i.e., wboat or uway). Now saves to 
-    a separate folder within the respective type folder.
-
-    11/08/2020 - Added functionality for Coriolis samples.
-    
-    23/07/2020 - Added functionality for start and stop time of aerosol sampling. Now automatically calculates sampling time in
-    minutes based on input args. 
-    
-    Parameters
-    ------------
-        blank_source : str
-            Path to source of calculated blank data. Currently accepts one file, but need to account for average of multiple files. 
-            (e.g., '..\\data\\interim\\IN\\calculated\\blank\\mq_blank_uf_120620_calculated.xlsx')
-        type_ : str
-            The sample type for which this blank was collected. [seawater, aerosol]
-        location : str
-            Where sample was collected. [uway, ASIT, wboatsml, wboatssw, bubbler, coriolis]
-        process : str
-             Identify whether the sample has been unfiltered or filtered. Unheated and heated processes are already included in the file. [uf,f]
-        sample_name : str 
-            sample source name as seen on the vial. 
-        collection_date : str 
-            sample collection date in NZST. [DDMMYYYY HHhMM for seawater and aerosol samples.]
-        analysis_date : str
-            LINDA analysis date in NZST. [DD/MM/YY]
-        issues : str
-            Issues noted in the LINDA analysis log. [DEFAULT = None]
-        num_tubes : int
-             Number of tubes per heated/unheated analysis. [DEFAULT = 26]
-        vol_tube : int
-            Volume in ml of sample solution per tube. [DEFAULT = 0.2]
-        rinse_vol : int
-            Volume in ml of mq water used for rinsing filters (aerosol sample types only).
-        size : str
-            Size of particles for filter samples (if applicable). Defaults to None if not given. Only used for aerosol samples. [super, sub]
-        flow_start : float 
-            Flow rate in LPM at start of sampling. Only used for aerosol samples.
-        flow_stop : float
-            Flow rate in LPM at end of sampling. Only used for aerosol samples.
-        sample_stop_time : str
-            Time in NZST at which sample collection was halted. Only valid for aerosol collections. [DDMMYYYY HHhMM]
     '''
 
     # Dictionary for mapping actual datetime of sample to the variable collection_date. Used for locating files (due to my poor file naming scheme) and can be ignored by anyone not working with
