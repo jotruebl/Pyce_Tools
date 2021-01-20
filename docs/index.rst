@@ -6,7 +6,7 @@ Welcome to the Pyce Tools documentation!
    :caption: Contents:
 
    /getting_started
-   modules
+   API
 
 
 
