@@ -32,12 +32,14 @@ release = '1.0'
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
-    'numpydoc'
-
+    "sphinx.ext.napoleon",
 ]
+napoleon_numpy_docstring = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
+
+autodoc_mock_imports = ["plotly"]
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.

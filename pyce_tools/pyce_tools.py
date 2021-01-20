@@ -358,20 +358,9 @@ class inp(object):
 
 def calculate_raw_blank(type_, process, location, sample_name, collection_date, analysis_date, issues, num_tubes, vol_tube = 0.2, rinse_vol = 20, size = None):
     '''
-    Description
-    ------------
     Loads raw data from LINDA BLANK experiments and creates a 'calculated' INP data file using given arguments.
     Saves the output as an XLSX file which can be later used as the blank in sample calculations of LINDA experiments.
 
-    Paths
-    ------------
-    raw input data: \\[PROJECT_ROOT]\\data\\raw\\IN\\blank\\[FILE]
-    calculated output file: \\[PROJECT_ROOT]\\data\\interim\\IN\\calculated\\blank\\[FILE]
-    
-    Recent Updates
-    -------------
-    02/11/2020 - Improved documentation.
-    
     Parameters
     ------------
     type_ : str
@@ -384,7 +373,7 @@ def calculate_raw_blank(type_, process, location, sample_name, collection_date, 
         Sample source name as seen on the vial. There is no rule on this, as it is simply stored as metadata, but ideally the sample name is following some kind of consistent standard.
     collection_date : str
         Sample collection date. Make note of your timezone, as the code does not assume one. 
-        This is used to help locate the raw data file. [DDMMYYYY HHhMM for seawater samples dayXX for aerosols].
+        This is used to help locate the raw data file. [DDMMYYYY HHhMM].
     analysis_date : str
         Date of LINDA analysis in NZST time. [DD/MM/YY]
     issues : str
@@ -394,7 +383,7 @@ def calculate_raw_blank(type_, process, location, sample_name, collection_date, 
     vol_tube : int
         Volume in ml of sample solution per tube. [DEFAULT = 0.2]
     rinse_vol : int
-        Volume in ml of mq water used for rinsing filters, if the sample type_ makes use of a filter.
+        Volume in ml of mq water used for rinsing filters, if the sample type makes use of a filter.
     size : str
         Size of particles for filter samples if sample was size resolved. [super, sub]
     
@@ -402,9 +391,14 @@ def calculate_raw_blank(type_, process, location, sample_name, collection_date, 
     ------------
     xlsx
         A spreadsheet of calculated blank data.
+    
+    Notes
+    ------------
+    | raw input data: \\[PROJECT_ROOT]\\data\\raw\\IN\\blank\\[FILE] 
+    | calculated output file: \\[PROJECT_ROOT]\\data\\interim\\IN\\calculated\\blank\\[FILE]
+
     '''
     
-
     # load raw data depending on sample type
     if type_ == 'mq':
         date = collection_date[:6]
@@ -412,7 +406,7 @@ def calculate_raw_blank(type_, process, location, sample_name, collection_date, 
         template = pd.read_excel('..\\in_calculation_template.xlsx', skiprows=1)
     
     if type_ == 'aerosol':
-        date = collection_date
+        date = collection_date[:6]
         inpath = '..\\data\\raw\\IN\\blank\\' + location + '_'+ 'blank' + '_' + process + '_' + size + '_' + date + '.csv'
         template = pd.read_excel('..\\in_calculation_template_aerosols.xlsx', skiprows=1)
     
@@ -498,8 +492,8 @@ def calculate_raw_blank(type_, process, location, sample_name, collection_date, 
 def calculate_raw(blank_source, type_, location, process, sample_name, 
                   collection_date, analysis_date, issues, num_tubes, vol_tube = 0.2, rinse_vol = 20, size = None,
                   flow_start = None, flow_stop = None, sample_stop_time = None):
-    '''Calculates raw data.
-    
+    '''
+    Calculates raw data.
     
     Creates an XLSX spreadsheet of blank corrected, calculated INP data for samples using given args. 
     Resulting spreadsheet has a seperate tab for unheated and heated samples, with respective metadata in each.
@@ -512,13 +506,13 @@ def calculate_raw(blank_source, type_, location, process, sample_name,
     type_ : str
         The sample type for which this blank was collected. [seawater, aerosol]
     location : str
-        Where sample was collected. [uway, ASIT, wboatsml, wboatssw, bubbler, coriolis]
+        Where sample was collected. [uway, wboatsml, wboatssw, bubbler, coriolis]
     process : str
             Identify whether the sample has been unfiltered or filtered. Unheated and heated processes are already included in the file. [uf,f]
     sample_name : str 
         sample source name as seen on the vial. 
     collection_date : str 
-        sample collection date in NZST. [DDMMYYYY HHhMM for seawater and aerosol samples.]
+        sample collection date in NZST. [DDMMYYYY HHhMM]
     analysis_date : str
         LINDA analysis date in NZST. [DD/MM/YY]
     issues : str
@@ -532,7 +526,7 @@ def calculate_raw(blank_source, type_, location, process, sample_name,
     size : str
         Size of particles for filter samples (if applicable). Defaults to None if not given. Only used for aerosol samples. [super, sub]
     flow_start : float 
-        Flow rate in LPM at start of sampling. Only used for aerosol samples.
+        Flow rate in liters per minute (LPM) at start of sampling. Only used for aerosol samples.
     flow_stop : float
         Flow rate in LPM at end of sampling. Only used for aerosol samples.
     sample_stop_time : str
@@ -542,6 +536,46 @@ def calculate_raw(blank_source, type_, location, process, sample_name,
     ------------
     raw input data: \\[PROJECT_ROOT]\\data\\raw\\IN\\[SAMPLE_TYPE]\\[FILE]
     calculated output file: \\[PROJECT_ROOT]\\data\\interim\\IN\\calculated\\[SAMPLE_TYPE]\\[SAMPLE_LOCATION]\\[FILE]
+    
+    Examples
+    ---------
+    Below is an example for a seawater INP sample collected from the workboat ssw.
+
+    >>> issues = 'Exact timing of sample collection on workboat is unknown; only that it was around 8-10 am.'
+    >>> blank_source = '..\\data\\interim\\IN\\calculated\\blank\\mq_wboat_blank_uf_260320_calculated.xlsx'
+    >>> type_ = 'seawater'
+    >>> location = 'wboatssw'
+    >>> process = 'uf'
+    >>> sample_name = 'TAN2003 IN 8b'
+    >>> collection_date = '23032020 08h00'
+    >>> analysis_date = '08/12/2020'
+    >>> num_tubes = 26
+    >>> vol_tube = 0.2
+    >>> raw = pt.calculate_raw(blank_source, type_, location, process, sample_name, collection_date, analysis_date, issues, num_tubes, vol_tube)
+    ...IN data calculated!
+    Calculated report file saved to ..\data\interim\IN\calculated\seawater\wboat_ssw\seawater_wboatssw_uf_230320_0800_calculated.xlsx.
+    
+    Below is an example for INP data from the bubbler.
+    
+    >>> issues = 'None.'
+    >>> blank_source = '..\\data\\interim\\IN\\calculated\\blank\\bubbler_blank_uf_super_day10_day11_calculated_avg.xlsx'
+    >>> type_ = 'aerosol'
+    >>> size = 'super'
+    >>> location = 'bubbler'
+    >>> process = 'uf'
+    >>> sample_name = 'Day 09 bubbler 3 stage PC'
+    >>> collection_date = '25032020 11h45'
+    >>> sample_stop_time = '26032020 08h52'
+    >>> analysis_date = '31/07/2020'
+    >>> num_tubes = 26
+    >>> vol_tube = 0.2
+    >>> flow_start = 10.50
+    >>> flow_stop = 9.35
+    >>> rinse_vol = 20
+    >>> raw = pt.calculate_raw(blank_source, type_, location, process, sample_name, collection_date, analysis_date, issues, num_tubes, vol_tube, rinse_vol, size, flow_start, flow_stop, sample_stop_time)
+    ...IN data calculated!
+    Calculated report file saved to ..\data\interim\IN\calculated\\aerosol\\bubbler\\aerosol_bubbler_uf_super_250320_1145_calculated.xlsx.
+
     '''
 
     # Dictionary for mapping actual datetime of sample to the variable collection_date. Used for locating files (due to my poor file naming scheme) and can be ignored by anyone not working with
@@ -703,23 +737,7 @@ def calculate_raw(blank_source, type_, location, process, sample_name,
 
 def clean_calculated_in(type_, location):
     '''
-    Description
-    ------------
     Creates an XLSX spreadsheet of cleaned data ready for analysis. 
-    
-    Paths
-    ------------
-    raw input data: \\[PROJECT_ROOT]\\data\\interim\\IN\\calculated\\[SAMPLE_TYPE]\\[SAMPLE_LOCATION]\\[FILE]
-    cleaned output file: \\[PROJECT_ROOT]\\data\\interim\\IN\\cleaned\\combinedtimeseries\\[SAMPLE_TYPE]\\[FILE]
-    
-    TODO
-    ------------
-    aerosol coriolis sample files should be changed to have similar information and format as seawater sample files.
-
-    Recent Updates
-    -------------
-    09/11/2020 - Fixed aerosol bubbler process to have similar information and format as seawater sample files.
-    02/11/2020 - Added documentation.
     
     Parameters
     ------------
@@ -727,6 +745,11 @@ def clean_calculated_in(type_, location):
             The sample type for which this blank was collected. [seawater, aerosol]
         location : str
             Where sample was collected. [uway, ASIT, wkbtsml, wkbtssw, bubbler, coriolis]
+    
+    Notes
+    ------------
+    raw input data: \\[PROJECT_ROOT]\\data\\interim\\IN\\calculated\\[SAMPLE_TYPE]\\[SAMPLE_LOCATION]\\[FILE]
+    cleaned output file: \\[PROJECT_ROOT]\\data\\interim\\IN\\cleaned\\combinedtimeseries\\[SAMPLE_TYPE]\\[FILE]
     '''
     
     
@@ -855,15 +878,8 @@ def clean_calculated_in(type_, location):
 
 def clean_inverted(inpath, nbins, outpath):
     '''
-    Description
-    ------------
     Accepts inverted scanotron data files from a specified given folder. Appends them into one dataframe and 
     sends them out to /interim/scanotron/combinedtimeseries/ folder. Also returns the completed dataframe as a variable for immediate use, as well as the file name and dLogDp value.
-    
-    Paths
-    ------------
-    inverted scanotron input data folder path: ..\\data\\interim\\"+instr+"\\inverted\\pro\\BHS\\
-    calculated output file: ..\\data\\interim\\'+instr+'\\combinedtimeseries\\BHS\\[FILE]
 
     Parameters
     ------------
@@ -882,6 +898,11 @@ def clean_inverted(inpath, nbins, outpath):
         Name of the file that is saved to the computer.
     dLogDp
         Integer of dLogDp.
+    
+    Notes
+    ------------
+    inverted scanotron input data folder path: ..\\data\\interim\\"+instr+"\\inverted\\pro\\BHS\\
+    calculated output file: ..\\data\\interim\\'+instr+'\\combinedtimeseries\\BHS\\[FILE]
     '''
     
     dfBig=pd.DataFrame()
@@ -930,9 +951,6 @@ def clean_inverted(inpath, nbins, outpath):
 
 def clean_magic(inpath, outpath, timezone):
     '''
-    Description
-    ------------
-
     Loads all raw magic CPC data files, cleans it up, and appends it into one file.
     Returns the cleaned dataset to chosen outpath as csv file. 
     
@@ -952,8 +970,10 @@ def clean_magic(inpath, outpath, timezone):
     
     Returns
     ------------
-    dfBig (df): the df that was just saved to a folder
-    outName (str): string of the start and end datetimes
+    dfBig : df
+        the df that was just saved to a folder
+    outName : str
+        string of the start and end datetimes
     
     '''
     dfBig=pd.DataFrame()
@@ -989,13 +1009,7 @@ def clean_magic(inpath, outpath, timezone):
 
 def load_scano_data(date_string, instrument):
     '''
-    Description
-    ------------
     Loads interim scanotron data that has already been pre-processed using the clean_inverted function. Returns two dataframes of dN and dNdLogDp where rows are time and columns are diameters.
-    
-    Paths
-    ------------
-    raw input data: \\[PROJECT_ROOT]\\data\\interim\\scanotron\\combinedtimeseries\\[FILE]
 
     Parameters
     ------------
@@ -1010,6 +1024,10 @@ def load_scano_data(date_string, instrument):
         A dataframe of particle counts where rows are dates and columns are diameters.
     dNdLogDp
         A dataframe of log-normalized particle counts where rows are dates and columns are diameters.
+    
+    Notes
+    ------------
+    raw input data: \\[PROJECT_ROOT]\\data\\interim\\scanotron\\combinedtimeseries\\[FILE]
     '''
     # Read in the cleaned and combinedtimeseries scanotron data
     df=pd.read_csv(
@@ -1073,8 +1091,6 @@ def surface_area(smps_daily_mean_df, smps_daily_std_df, nbins):
 
 def plot_number_dist(smps_daily_mean_df, smps_daily_std_df):
     '''
-    Description
-    ------------
     Creates a plot of scanotron data.
 
     Parameters
@@ -1086,7 +1102,7 @@ def plot_number_dist(smps_daily_mean_df, smps_daily_std_df):
 
     Returns
     ------------
-    fig
+    fig : object
         A plotly graph object.
     '''
     # create melted df
@@ -1236,23 +1252,14 @@ def wilsonUpper(p, n=26, z = 1.96):
 
 def calculate_wilson_errors(project, location, type_, n = 26):
     '''
-    Description
-    ------------
+
     Takes calculated report files and creates a csv of error bars. The csv is saved in the same location as the cleaned combined time series data file.
     lower and upper bounds for blank subtracted frozen fraction of tubes are calculated using subfunctions (upperBound, lowerBound, respectively). 
     These fractions are then converted to a number of blank subtracted tubes that are frozen (upper_N-BLNK, lower_N-BLNK, respectively).
     These bounds are then converted into INP/tube upper and lower bounds. Then they are converted to IN/mL and IN/L upper and lower bounds.
     Finally, the difference between each bound and the original observed value is calculated to determine the size of the error bars.
-
-    Paths
-    ------------
-    raw input data: \\[PROJECT_ROOT]\\data\\interim\\IN\\calculated\\[SAMPLE_TYPE]\\[SAMPLE_LOCATION]\\[FILE]
-    cleaned output file: \\[PROJECT_ROOT]\\data\\interim\\IN\\cleaned\\combinedtimeseries\\[SAMPLE_TYPE]\\[FILE]
-
-    Recent Updates
-    -------------
-    02/11/2020 - Added documentation.
     
+
     Parameters
     ------------
         project : str
@@ -1263,12 +1270,14 @@ def calculate_wilson_errors(project, location, type_, n = 26):
             Description
         n : int
             Number of tubes.
+    
+    Notes
+    -----
+    raw input data: \\[PROJECT_ROOT]\\data\\interim\\IN\\calculated\\[SAMPLE_TYPE]\\[SAMPLE_LOCATION]\\[FILE]
+    cleaned output file: \\[PROJECT_ROOT]\\data\\interim\\IN\\cleaned\\combinedtimeseries\\[SAMPLE_TYPE]\\[FILE]
     '''
     error_all = pd.DataFrame()
   
-
-    # cell_vol --> given in ml
-    #  In here, calculate the error_y and minus_y. Send both the bound and error_y, minus_y values all together so they can be used however.
     if project == 'me3':
         for proc in ['FILTERED','UNFILTERED']:
             for file in os.listdir("..\\data\\interim\\IN\\calculated\\"+type_+"\\"+proc+'\\'):
@@ -1571,10 +1580,8 @@ def plot_ssw_inp(inp_df):
     
     return fig
 
-def CleanAqualog(instr, outpath):
+def clean_aqualog(instr, outpath):
     '''
-    Summary:
-    
     Loads all raw aqualog data files for a given instrument (aqlog1 or aqlog2) and cleans it up.
     Returns the cleaned dataset to chosen outpath. 
     
@@ -1585,15 +1592,19 @@ def CleanAqualog(instr, outpath):
         4) create a timeString column in UTC time
         5) save df to csv in specified folder
     
-    Parameters:
+    Parameters
+    ----------
+    instr : string 
+        aqualog1 or aqualog2
+    outpath : string 
+        location where cleaned csv file is saved.
     
-    instr (string): aqualog1 or aqualog2
-    outpath (string): location where cleaned csv file is saved.
-    
-    Returns:
-    
-    dfBig (df): the df that was just saved to a folder
-    outName (str): string of the start and end datetimes
+    Returns
+    -------
+    dfBig : df
+        the df that was just saved to a folder
+    outName : string
+        string of the start and end datetimes
     
     '''
     dfBig=pd.DataFrame()
