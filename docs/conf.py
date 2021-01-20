@@ -12,8 +12,8 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('..\\pyce_tools'))
-sys.path.insert(0, os.path.abspath('../'))
+sys.path.insert(0, os.path.abspath('..\\'))
+
 
 
 # -- Project information -----------------------------------------------------
@@ -40,7 +40,7 @@ napoleon_numpy_docstring = True
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
-autodoc_mock_imports = ["plotly"]
+autodoc_mock_imports = ["plotly", "openpyxl"]
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
