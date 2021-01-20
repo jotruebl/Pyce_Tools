@@ -1,4 +1,4 @@
-Pyce Tools Manual
+Getting Started with Pyce Tools
 ======================================
 
 1.0 Introduction
@@ -69,11 +69,11 @@ It is imperative that raw files are saved in the correct location and with the c
 
 3.2 Creating Calculated Sample Report Files from Raw Data
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Calculated report files are created by processing the raw data using either the :py:func:`pyce_tools.calculate_raw_blank` or :py:func:`pyce_tools.calculate_raw` functions. Raw blank calculation is described in Section `3.3 Blank Correction`_ below. Here we describe the process of creating a calculated sample report file for raw data, assuming that calculated blank data files are ready for use. [#]_
+Calculated report files are created by processing the raw data using either the :py:func:`.calculate_raw_blank` or :py:func:`.calculate_raw` functions. Raw blank calculation is described in Section `3.3 Blank Correction`_ below. Here we describe the process of creating a calculated sample report file for raw data, assuming that calculated blank data files are ready for use. [#]_
 
 |
 
-.. [#] Right now, only a single blank file is loaded. Eventually it would make sense to add functionality to average all relevant blank files into one file which is then subtracted from the data. For now, your best bet is to do this manually yourself by calculating several blank files individually (see Section `3.3 Blank Correction`_), and then averaging them into one blank file and passing that file as a parameter when calling the :py:func:`pyce_tools.calculate_raw` function.
+.. [#] Right now, only a single blank file is loaded. Eventually it would make sense to add functionality to average all relevant blank files into one file which is then subtracted from the data. For now, your best bet is to do this manually yourself by calculating several blank files individually (see Section `3.3 Blank Correction`_), and then averaging them into one blank file and passing that file as a parameter when calling the :py:func:`.calculate_raw` function.
 
 Raw data files are processed using template spreadsheets. There is a template for seawater and aerosol sample :py:attr:`type` which should be placed in your project root directory. These template spreadsheets have the necessary equations already inside of them so that the code simply needs to place the values in the correct locations. 
 
@@ -93,7 +93,7 @@ You will want to check over the calculated report file yourself as the template 
 
 3.3 Blank Correction
 ^^^^^^^^^^^^^^^^^^^^
-As mentioned in the previous section, INP raw data files from the LINDA need to be blank corrected. To do this, blanks are collected, analyzed with LINDA, calculated with :py:func:`pyce_tools.calculate_raw_blank`, and finally subtracted from experiment raw data files using the :py:func:`pyce_tools.calculate_raw` function.
+As mentioned in the previous section, INP raw data files from the LINDA need to be blank corrected. To do this, blanks are collected, analyzed with LINDA, calculated with :py:func:`.calculate_raw_blank`, and finally subtracted from experiment raw data files using the :py:func:`.calculate_raw` function.
 
 When conducting LINDA experiments, the name of the blank file should follow this naming template specified below.
 
@@ -108,12 +108,12 @@ The calculated report file will include metadata on the following: raw data sour
 
 If the sample is of :py:attr:`type` aerosol, the metadata will also include rinse volume and aeorosol size regime.
 
-The calculated report file is then saved to the appropriate folder. See :py:func:`pyce_tools.calculate_raw` for specifics.
+The calculated report file is then saved to the appropriate folder. See :py:func:`.calculate_raw` for specifics.
 
 3.4 Cleaning Calculated Report Files
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The :py:func:`pyce_tools.clean_calculated_in` function loads and cleans each calculated report file into a format that’s easier to use in Python. Some processes carried out by this function include renaming columns, reshaping the dataframes, and most importantly, combining all the calculated report files into a single time series file. This means you will want to ensure each project or experiment has its own folder so that results from different projects don't get combined into a single time series. 
+The :py:func:`.clean_calculated_in` function loads and cleans each calculated report file into a format that’s easier to use in Python. Some processes carried out by this function include renaming columns, reshaping the dataframes, and most importantly, combining all the calculated report files into a single time series file. This means you will want to ensure each project or experiment has its own folder so that results from different projects don't get combined into a single time series. 
 
 The output of this function is a csv file where each row is an observation and each column is a temperature. Seawater sample types will also have columns for datetime, time, process, type, location, and filtered/unfiltered indicator. The IN values are given in IN/mL of water.
  
@@ -124,9 +124,9 @@ Cleaned files are saved to:
 
 3.4.1 Calculating Confidence Intervals
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error bars are usually given as xxx. This is carried out using :py:func:`pyce_tools.calculate_wilson_errors`. The function itself is not pretty but it gets the job done. The output csv file is saved in the same location as the cleaned combined time series data file described in Section `3.4 Cleaning Calculated Report Files`_ and with the same naming convention, but with ‘wilson_error’ appended to the end.
+Error bars are usually given as xxx. This is carried out using :py:func:`.calculate_wilson_errors`. The function itself is not pretty but it gets the job done. The output csv file is saved in the same location as the cleaned combined time series data file described in Section `3.4 Cleaning Calculated Report Files`_ and with the same naming convention, but with ‘wilson_error’ appended to the end.
 
-Lower and upper bounds for blank subtracted frozen fraction of tubes (upperBound, lowerBound) are calculated using subfunctions (:py:func:`pyce_tools.wilsonLower` and :py:func:`pyce_tools.wilsonUpper`). These fractions are then converted to a number of blank subtracted tubes that are frozen (upper_N-BLNK, lower_N-BLNK, respectively). These bounds are then converted into INP/tube upper and lower bounds. Then they are converted to IN/mL and IN/L upper and lower bounds. Finally, the difference between each bound and the original observed value is calculated to determine the size of the error bars and saved as error_y and error_minus_y. The confidence interval of the uncertainty can be changed by using a different sigma value in the template spreadsheets.
+Lower and upper bounds for blank subtracted frozen fraction of tubes (upperBound, lowerBound) are calculated using subfunctions (:py:func:`.wilsonLower` and :py:func:`.wilsonUpper`). These fractions are then converted to a number of blank subtracted tubes that are frozen (upper_N-BLNK, lower_N-BLNK, respectively). These bounds are then converted into INP/tube upper and lower bounds. Then they are converted to IN/mL and IN/L upper and lower bounds. Finally, the difference between each bound and the original observed value is calculated to determine the size of the error bars and saved as error_y and error_minus_y. The confidence interval of the uncertainty can be changed by using a different sigma value in the template spreadsheets.
 
 For seawater samples, the units are INP/L seawater. For aerosol samples, the units are INP/L air.
 
@@ -148,21 +148,21 @@ The code for these steps can be found in the jupyter notebook that accompanies t
 ---------------------------------------------
 Particle size distribution data is crucial as it is needed to calculate surface area normalized INP concentrations of SSA. Pyce Tools includes some functions for loading, visualizing, and preparing size distribution data for normalization of INP.
 
-Inverted data from the scanotron is cleaned and concatenated into a single combined timeseries file  using :py:func:`pyce_tools.clean_inverted` function. For processing, all inverted files should be saved into a single folder. 
+Inverted data from the scanotron is cleaned and concatenated into a single combined timeseries file  using :py:func:`.clean_inverted` function. For processing, all inverted files should be saved into a single folder. 
 
 Here, we choose the following directory path:
     *\\[PROJECT_ROOT]\\data\\interim\\scanotron\\inverted\\pro\\[FILE]*
 The output path for the cleaned size distribution file can be defined by the user. Here we choose the following:
     *\\[PROJECT_ROOT]\\data\\interim\\scanotron\\combinedtimeseries\\*
 
-Inverted concentrations from the scanotron are usually lognormalized. As such, the :py:func:`pyce_tools.clean_inverted` function accepts the number of size bins as a parameter for calculation of raw counts.
+Inverted concentrations from the scanotron are usually lognormalized. As such, the :py:func:`.clean_inverted` function accepts the number of size bins as a parameter for calculation of raw counts.
 
-After cleaning inverted scanotron data, it can be loaded into a workspace using :py:func:`pyce_tools.load_scano_data` and further manipulated. Parameters for the :py:func:`pyce_tools.load_scano_data` function include dates, which is the name of the combined time series file you want to load, and instr, which tells where the file is located. 
+After cleaning inverted scanotron data, it can be loaded into a workspace using :py:func:`.load_scano_data` and further manipulated. Parameters for the :py:func:`.load_scano_data` function include dates, which is the name of the combined time series file you want to load, and instr, which tells where the file is located. 
 The :py:func:`pyce_tools` modules for further information on the rest of the functions, which include:
 
-- Surface area can be calculated using :py:func:`pyce_tools.surface_area`
-- Magic CPC data can be cleaned using :py:func:`pyce_tools.clean_magic`
-- Create plots using :py:func:`pyce_tools.plot_number_dist` and :py:func:`pyce_tools.plot_surface_dist`
+- Surface area can be calculated using :py:func:`.surface_area`
+- Magic CPC data can be cleaned using :py:func:`.clean_magic`
+- Create plots using :py:func:`.plot_number_dist` and :py:func:`.plot_surface_dist`
 
 5.0 Analysis
 -------------
@@ -183,13 +183,13 @@ The cyto_data dataframe will look similar to the uway_bio dataframe. Again, you 
 
 5.2 Calculating Surface Area Normalized INP Concentrations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Surface area normalized INP concentrations are calculated using the inp object’s :py:func:`pyce_tools.inp.sa_normalize` method. The dA_total dataframe, which is returned from the :py:func:`pyce_tools.surface_area` function, is passed as a parameter. This function assumes you have already organized dA_total to line up with your INP collection periods. See the tutorial for specifics.
+Surface area normalized INP concentrations are calculated using the inp object’s :py:func:`pyce_tools.pyce_tools.inp.sa_normalize` method. The dA_total dataframe, which is returned from the :py:func:`.surface_area` function, is passed as a parameter. This function assumes you have already organized dA_total to line up with your INP collection periods. See the tutorial for specifics.
 
 5.3 Plotting with error bars and previous studies
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-A plot of aerosol INP vs literature values is done through the :py:func:`pyce_tools.inp.plot_ins_inp` method. Note that seawater INP (ssw and sml) plots are not object methods but rather Pyce Tools functions (:py:func:`pyce_tools.plot_sml_inp`, :py:func:`pyce_tools.plot_ssw_inp`). 
+A plot of aerosol INP vs literature values is done through the :py:func:`pyce_tools.pyce_tools.inp.plot_ins_inp` method. Note that seawater INP (ssw and sml) plots are not object methods but rather Pyce Tools functions (:py:func:`.plot_sml_inp`, :py:func:`.plot_ssw_inp`). 
 
 5.4 Correlations and correlation scatter plots
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Correlations are calculated using INP object’s :py:func:`pyce_tools.inp.correlations` method. A list of temperatures as strings are sent, as well as a specific process (H, or UH) and inp_units string, which indicates the column containing your INP concentrations. See tutorial and code documentation for more details.
-The correlations can also be viewed with scatter plots by using the :py:func:`pyce_tools.inp.plot_corr_scatter` method, which returns a figure object which can be further stylized.
+Correlations are calculated using INP object’s :py:func:`pyce_tools.pyce_tools.inp.correlations` method. A list of temperatures as strings are sent, as well as a specific process (H, or UH) and inp_units string, which indicates the column containing your INP concentrations. See tutorial and code documentation for more details.
+The correlations can also be viewed with scatter plots by using the :py:func:`pyce_tools.pyce_tools.inp.plot_corr_scatter` method, which returns a figure object which can be further stylized.

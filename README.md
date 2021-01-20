@@ -12,10 +12,6 @@ Pyce Tools allows users to easily:
 * Normalize INP concentrations by particle surface area.
 * Calculate and plot correlations between seawater parameters and INP concentrations.
 
-## Getting Started
-
-See the getting_started guide for a general overview and introduction to Pyce Tools.
-
 ## Installation
 
 For now, Pyce Tools is installed simply by cloning this repository into your workspace.
@@ -24,23 +20,27 @@ For now, Pyce Tools is installed simply by cloning this repository into your wor
 
 * Pandas
 * openpyxl
-* datetime
 * Plotly
 * *Recommended:* Jupyter Notebooks
 
-## Usage
+## Getting Started
 
 In your Jupyter Notebook (or equivalent workspace), alter your system path to include pyce_tools root folder:
-```
+```python
 import sys
 sys.path.append('PATH\\TO\\PYCE_TOOLS')
 ```
 
 Then, import Pyce Tools by typing the following:
-```
+```python
 import pyce_tools.pyce_tools as pt
 ```
 
+See [the documentation](https://pyce-tools.readthedocs.io/en/latest/index.html) or the tutorial notebook located in the tutorial folder for a complete overview.
+
+## Usage
+
+See the complete [Getting Started guide](https://pyce-tools.readthedocs.io/en/latest/getting_started.html) for a general overview and introduction to Pyce Tools.
 
 ## Planned Updates
 
@@ -52,7 +52,7 @@ import pyce_tools.pyce_tools as pt
 * :heavy_check_mark: Include function for calculating INP concentrations normalized by particle surface area
 * :heavy_check_mark: Include function for calculating correlations
 * :heavy_check_mark: Include function for calculating particle surface areas 
-* :construction: Update documentation
+* :heavy_check_mark: Update documentation
 * :heavy_check_mark: Include function for calculating and loading uncertainties
 * :construction: update clean_aqualog function
 
