@@ -22,6 +22,13 @@ For now, Pyce Tools is installed simply by cloning this repository into your wor
 * openpyxl
 * Plotly
 * *Recommended:* Jupyter Notebooks
+* *Recommended:* ipykernal
+
+If you're using conda package manager, simply type the following into the terminal to install dependencies:
+'''
+conda install --file requirements.txt
+'''
+
 
 ## Getting Started
 
@@ -44,14 +51,14 @@ See the complete [Getting Started guide](https://pyce-tools.readthedocs.io/en/la
 
 ## Planned Updates
 
-* :heavy_check_mark: Clean and prep LINDA experiment report files into a single time series dataset for exploratory analysis (error bars and data) 
+* :heavy_check_mark: Clean and prep LINDA experiment report files into a single time series dataset for exploratory analysis (error bars and data)
 * :heavy_check_mark: Include functions for plotting surface area and number size distribution timeseries (error bars included)
 * :heavy_check_mark: Include function for plotting common INP plots
 * :heavy_check_mark: Improve time zone handling
-* :heavy_check_mark: Include function for creating error bars for ice nucleating particles 
+* :heavy_check_mark: Include function for creating error bars for ice nucleating particles
 * :heavy_check_mark: Include function for calculating INP concentrations normalized by particle surface area
 * :heavy_check_mark: Include function for calculating correlations
-* :heavy_check_mark: Include function for calculating particle surface areas 
+* :heavy_check_mark: Include function for calculating particle surface areas
 * :heavy_check_mark: Update documentation
 * :heavy_check_mark: Include function for calculating and loading uncertainties
 * :construction: update clean_aqualog function
