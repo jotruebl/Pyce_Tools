@@ -25,9 +25,9 @@ For now, Pyce Tools is installed simply by cloning this repository into your wor
 * *Recommended:* ipykernal
 
 If you're using conda package manager, simply type the following into the terminal to install dependencies:
-'''
+```
 conda install --file requirements.txt
-'''
+```
 
 
 ## Getting Started
