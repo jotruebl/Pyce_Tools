@@ -140,7 +140,7 @@ While Pyce Tools does a bulk of the necessary manipulations and pre-processing, 
 - Set to NZ time zone
 - Merge uncertainty and concentration dataframes
 
-The code for these steps can be found in the jupyter notebook that accompanies the Section XX Tutorial.
+The code for these steps can be found in the jupyter notebook that accompanies tutorial.
 
 4.0 Handling Particle Size Distribution Data
 ---------------------------------------------
@@ -171,7 +171,7 @@ Pyce Tools currently has functions for several basic analyses. In the following 
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 Analysis of INP data is achieved using the INP class. An INP class object consists of INP data of a single type from a single location, a uway_bio dataframe consisting of observations from the ships underway, and a cyto_bio dataframe which can have further biology data from any location. In this way, we have a final INP object consisting of INP data from a specific location and of a certain type, which will contain multiple processes and temperatures and filtered/unfiltered states. 
 
-See the tutorial for how to construct an INP class object from data. INP objects are instantiated when given an inp_type, inp_location, cyto_location, a cyto_data dataframe, a uway_bio dataframe, and an inp_data dataframe. See the pyce_tools.py file for in depth details.
+See the tutorial for how to construct an INP class object from data. INP objects are instantiated when given an inp_type, inp_location, cyto_location, a cyto_data dataframe, a uway_bio dataframe, and an inp_data dataframe. See the :py:class:`pyce_tools.pyce_tools.inp` file for in depth details.
 
 It is important that the index in the INP dataframe be titled ‘datetime’ and be a datetime object. Code for how to do this is found in the tutorial section. Note that you can pass in a dataframe consisting of multiple locations and types, but the code will automatically keep only the data that corresponds to your selected type and location as defined when instantiating the object.
 
