@@ -4,11 +4,9 @@ Getting Started with Pyce Tools
 1.0 Introduction
 -----------------
 
-Ice Nucleating Particles (INP) are … One in a million particles act as INP at -20C
+Ice Nucleating Particles (INP) are crucial to determining various properties of clouds, including precipitation rates, lifetime, shortwave reflectivity, and longwave emissivity. Since the effects of aerosols on cloud optical properties and radiative forcing is the single most uncertain component of radiative forcing of Earth’s climate, this makes understanding INP massively important.
 
-They are crucial to determining various properties of clouds, including precipitation rates, lifetime, shortwave reflectivity, and longwave emissivity. Since the effects of aerosols on cloud optical properties and radiative forcing is the single most uncertain component of radiative forcing of Earth’s climate, this makes understanding INP massively important.
-
-The field is nascent and fast moving. Not only that, but uncertainty is on the scale of orders of magnitude.  Any time not spent wrangling and preprocessing data can be spent finding high impact results. Pyce Tools addresses these two problems. First, by offering a set of guidelines for INP data workup means less errors during data workup. Second, it’s easy to prepare, so you can spend less Spend less time working up your data, and more time finding high impact results.
+The field is nascent and fast moving. Not only that, but uncertainty is on the scale of orders of magnitude. Any time not spent wrangling and preprocessing data can be spent finding high impact results. Pyce Tools addresses these two problems. First, by offering a set of guidelines for INP data workup means less errors during data workup. Second, it’s easy to prepare, so you can spend less Spend less time working up your data, and more time finding high impact results.
 This getting started guide briefly describes the Pyce Tools nomenclature, the raw data processing workflow, and the additional data analysis tools included in the package. Further details are found in the code documentation (in the pyce_tools.py file). Users can also reference the accompanying jupyter notebook tutorial file.
 
 **A final disclaimer:** this code was written for the Sea2Cloud Tangaroa Cruise. As such, it assumes input files are organized in a certain way. I tried to keep things broad so that the code could be extended to future cases, but don’t be afraid tweak the source code as you see fit.
