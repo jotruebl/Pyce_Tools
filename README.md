@@ -1,5 +1,7 @@
 # Pyce Tools
 
+**Important Note:** The code works as is, but [please see a recent blog post describing refactoring steps that would improve the modularity.](https://jotruebl.github.io/design_patterns/) It is up to individual users to implement it as I'm no longer regularly maintaining this project.
+
 A PYthon library for calculating, cleaning, and analyzing iCE nucleating particle (INP) data. :ice_cube:
 
 Pyce Tools allows users to easily:
@@ -61,7 +63,6 @@ See the complete [Getting Started guide](https://pyce-tools.readthedocs.io/en/la
 * :heavy_check_mark: Include function for calculating particle surface areas
 * :heavy_check_mark: Update documentation
 * :heavy_check_mark: Include function for calculating and loading uncertainties
-* :construction: update clean_aqualog function
 
 
 ## Contributing
